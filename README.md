@@ -1,6 +1,6 @@
-# Finansavisen Vibe Starter
+# fa-engine
 
-Starter for small, branded web apps on `finansavisen.no`, built by Hegnar/FA journalists with the help of a coding agent.
+A roadmap tool for product managers and product owners across Finansavisen and Profico, running as a JournalistBoost app.
 
 The starter is **agent-first**: the canonical instructions live in [`AGENTS.md`](./AGENTS.md). The agent reads that file, follows the recipes in [`skills/`](./skills/), and customizes this template to whatever the journalist asks for.
 
