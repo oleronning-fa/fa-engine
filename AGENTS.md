@@ -6,6 +6,34 @@ This file is the contract. Read it fully before doing anything. The companion `s
 
 ---
 
+## THIS REPO IS FA ENGINE — read `docs/` first
+
+This is no longer a blank starter. It's **Fa Engine** (Hegnar Media / Finansavisen):
+a roadmap tool for the product team (v1.0), growing into a feedback hub, a
+week-agent and a telemarketing CRM. Built hands-on by OC and Magnus with AI
+assistance — not a "journalist who can't read code" situation.
+
+**Before any work:** read `docs/README.md`, then `docs/fa-engine-phase-0-plan.md`
+(what's built, what's next, what's blocked), then the spec docs it points to.
+The domain model comes first and lives in `src/core/` — see `src/core/AGENTS.md`.
+
+**Where the template's defaults change for this project:**
+
+| Template default | Fa Engine |
+|---|---|
+| "small app, near-zero client JS" | data-heavy internal tool; React islands for the boards/tables/keyboard nav (`skills/add-react`) |
+| `fa-vibe:add-database` — plain `pg`, no ORM | **Drizzle + migrations** in `drizzle/` (schema too complex for raw SQL — the skill's own exception). See the plan doc's "Divergences" section. |
+| no queue | **pg-boss** (a queue inside Postgres — no new infra) |
+| JB session middleware (`AUTH_MODE=jb`) | will become **Auth.js + Google Workspace OIDC**; role in `app_user`. Not done yet. |
+| internal copy in English is unusual | internal surfaces **are** English; reader-facing stays bokmål (`roadmap-krav` §10) |
+
+Everything below still applies where it doesn't conflict with the above:
+Zephr rules for any reader-facing surface, FA tokens never hardcoded, quality
+gates (`pnpm build`, `pnpm check`), reversibility, deployable with no infra
+hand-editing.
+
+---
+
 ## Mission
 
 Produce small, well-branded web apps for `finansavisen.no` that:

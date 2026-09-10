@@ -77,6 +77,16 @@ export default defineConfig({
         access: 'secret',
         default: 'https://prod-zephr-components.finansavisen.no',
       }),
+
+      // --- Database (Fa Engine) --------------------------------------
+      // Postgres 16+ with pgvector. Local: in .env. Production: injected by
+      // the platform in Coolify. `optional` so `astro build` runs without a
+      // DB reachable; `src/core/db.ts` throws loudly at runtime if it's unset.
+      DATABASE_URL: envField.string({
+        context: 'server',
+        access: 'secret',
+        optional: true,
+      }),
     },
   },
 
