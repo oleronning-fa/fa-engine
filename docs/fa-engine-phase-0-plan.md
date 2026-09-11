@@ -37,34 +37,97 @@ placeholder-only in `.env.example`.
   - `db.ts` — one postgres.js connection, throws loudly if `DATABASE_URL` is unset.
 - [x] `drizzle/0000_*.sql` generated and applied. `pnpm db:health` green.
 - [x] Scripts: `db:generate`, `db:migrate`, `db:studio`, `db:health`.
+- [x] **The importer** (`src/modules/roadmap/import/`), run against the real
+  `Fa Teams — Big Headlines — Allocation Plan.xlsx` (OC's `OC_kopi_av_Roadmap.xlsx`),
+  11 September 2026. `312 roadmap_item` rows written to the local dev DB, `20`
+  people, `152 import_note` rows for review. Source file kept in
+  `import-source/` — **gitignored, never committed** (this repo is public; see
+  "Public repo" below). Detail in "Import results", below.
 
 ## Next — in order
 
-1. **Seed `app_user` + `person_alias`** — the ~20-line hand-written alias table
-   mapping the sheet's 22 spellings of OC/Magnus/Marina/Zagreb onto real users
-   (`roadmap-krav` §5 step 5). Blocks the importer.
+1. **Resolve the `import_note` review queue** (152 rows) — mostly area
+   confirmation, a few name/date/status calls only a human can make. See
+   "Import results".
 2. **Domain services in `src/core/`** — `recordSignal()` (the signal contract,
    `signalkoblingen` §3), `logEvent()` (append-only, every mutation), roadmap
    status-transition rules (which statuses are legal per type; auto-set
    `completedAt`; require `declinedReason`).
 3. **Contract tests on `core`** (Vitest) — a contributing agent must not be able
    to break the customer graph silently (`plan` §8.4).
-4. **The importer** (`src/modules/roadmap/import/`) — the 10-step spec in
-   `roadmap-krav` §5. Needs the two `.xlsx` files (see Blocked) and a Jira token
-   for enrichment. Everything it can't parse → `import_note` review queue.
-5. **Roadmap read model + views** — one list (filter/group/inline-edit/bulk/
+4. **Roadmap read model + views** — one list (filter/group/inline-edit/bulk/
    keyboard/shareable URL), the Epic page, Idea bank → Backlog → board, "For
    deg", Logg (`roadmap-feltkatalog` §1–§7). React islands per `add-react`.
-6. **Jira one-way read sync** — `src/core/jira.ts`: given a key, pull status,
+   This is the first thing anyone can click on.
+5. **Jira one-way read sync** — `src/core/jira.ts`: given a key, pull status,
    resolution date, assignee. Never write back. Mirrors `CR`/`FT`/`On QA` as
-   `jiraSubstatus`.
-7. **Auth** — Auth.js + Google Workspace OIDC, role in `app_user`. Replaces the
+   `jiraSubstatus`. Also lets the importer's area-matching improve (Jira
+   components are already a taxonomy — roadmap-krav §5 step 9).
+6. **Auth** — Auth.js + Google Workspace OIDC, role in `app_user`. Replaces the
    template's JB middleware. Blocked on OIDC credentials.
-8. **Idea bank** — `status = 'Idea'` + a view + the `fa-concept` skill. Mostly
-   falls out of steps 2 and 5 (`idebank` §7).
+7. **Idea bank** — `status = 'Idea'` + a view + the `fa-concept` skill. Mostly
+   falls out of steps 2 and 4 (`idebank` §7).
 
 Stop points for review: after step 3 (the model is real and tested), after
-step 4 (real data is in), after step 5 (something to click).
+step 4 (something to click).
+
+---
+
+## Import results — 11 September 2026
+
+Source: OC's `OC_kopi_av_Roadmap.xlsx` (= `Fa Teams — Big Headlines — Allocation
+Plan.xlsx`). The `WiP - Fa Roadmap 2026` file is **reference only, per OC** —
+nothing was imported from it, and the importer has no code path that reads it.
+
+Real data drifted a little from the August snapshot the spec docs describe —
+expected, a live sheet moves. Two findings worth recording: `Next to do` is now
+named `Backlog`, and a new `Backlog design` sheet exists (small, design-only
+items) that no spec document mentions.
+
+**Written:** 312 `roadmap_item` (39 Epic, 262 Task, 4 Bug, 7 Research) · 20
+`app_user` · 28 `person_alias` · 249 `roadmap_source` · 312 `roadmap_status_log`
+· 312 `event`.
+
+**152 `import_note` rows, for a human to resolve:**
+
+| Issue | Count | What it means |
+|---|---|---|
+| `area_unresolved` | 105 | Keyword rules found no area for a Task/Bug/Research title. Expected — the spec itself budgeted ~90 for manual review even with the old rules, and Jira-component enrichment (would shrink this a lot) is blocked on the API token. Epics are exempt — an empty area there is normal (feltkatalog §2), not flagged. |
+| `completed_at_approximate` | 17 | No Final Delivery Date; used the 1st of the sheet's `Done MMYY` month instead. |
+| `parser_flag` | 16 | Mostly bracket tags the importer doesn't specially handle (`[MyFa]`, `[fa-web]`, …) — informational, not necessarily wrong. |
+| `status_guessed` | 5 | An active-looking status with no `jira_key` — defaulted to `Prioritized`. |
+| `date_unparsed` | 5 | A date string that didn't match any of the 3 known patterns (e.g. `"16. - 18.06.2026."`). |
+| `name_unresolved` | 4 | `Kula/Andrej`, `Marina / (Magnus)`, `Marina/Kula`, `Marina/Sina T.` — slash-joined dual ownership in a single-owner column. Needs a human to pick one, not a guess. |
+
+**Two names need confirming, not silently dropped:** `Luka` and `Jonas` each
+appear once in an owner/team column and aren't in any spec document. Real
+people (new hires?) or a typo — `docs/../import/people.ts` flags both.
+
+**Query the queue:**
+```sql
+SELECT issue, source_ref, raw->>'detail' FROM import_note WHERE issue = 'area_unresolved';
+```
+
+Re-runnable: `pnpm import:roadmap [path] [--write]` — no `--write` is a dry run
+(prints the same summary, writes nothing). Re-running `--write` will duplicate
+rows unless the roadmap tables are truncated first; there's no upsert (it's a
+one-time import, per the spec).
+
+---
+
+## Public repo — what never gets committed
+
+`github.com/oleronning-fa/fa-engine` is a **public** repo (confirmed via the
+GitHub API, unauthenticated request returned 200). That changes what's allowed
+in git beyond the usual `.env` rule:
+
+- The source `.xlsx` files (real names, sales comments, business detail) live
+  in `import-source/`, gitignored. Never commit them.
+- The imported data itself lives only in Postgres (local dev, and later the
+  platform's DB) — never as a file in the repo.
+- Only the **importer code** and the **spec docs already in `docs/`** are
+  public. If a future doc or export contains something more sensitive than
+  what's already here, flag it before adding it to `docs/`.
 
 ---
 
@@ -72,13 +135,13 @@ step 4 (real data is in), after step 5 (something to click).
 
 | Blocker | Needed for | Owner |
 |---|---|---|
-| The two `.xlsx` files (`Fa Teams — Big Headlines — Allocation Plan.xlsx`, `WiP - Fa Roadmap 2026.xlsx`) | The importer (step 4) | OC |
-| Jira API token, read access to FCK/FIB/FADT/FAPPS/JB | Import enrichment + sync (steps 4, 6) | Profico / Atlassian admin |
-| Google Workspace OIDC client (id + secret + redirect) | Real auth (step 7) | Hegnar Google Workspace admin |
+| Jira API token, read access to FCK/FIB/FADT/FAPPS/JB | Import enrichment (shrinks `area_unresolved`) + one-way sync (steps 4, 5) | Profico / Atlassian admin |
+| Google Workspace OIDC client (id + secret + redirect) | Real auth (step 6) | Hegnar Google Workspace admin |
 | **One owner + one Slack channel per of the 18 areas** | `area_routing` seed; routing in every view | Hegnar (`versjonsplan` §9) |
-| The WiP-sheet colour legend (7 fill colours, no key) | Import of the strategic sheet | Whoever coloured it |
 | **Does the platform's shared Postgres have `pgvector`?** | `signal.embedding` / `theme.embedding` columns; everything from v1.2 | Platform owner (`coolify` skill) |
-| Slack app with `chat:write` | Slack notifications (step 5 "bør ha") | Hegnar workspace admin |
+| Slack app with `chat:write` | Slack notifications (step 4 "bør ha") | Hegnar workspace admin |
+| Who is `Luka`? Who is `Jonas`? | `person_alias` confirmation, 1 row each | OC |
+| Which single name is the real owner on 4 items with slash-joined names | `import_note` issue `name_unresolved` | OC / Marina |
 
 `pgvector` note: the columns are in migration `0000` behind
 `CREATE EXTENSION IF NOT EXISTS vector`. v1.0 does not read them. If the

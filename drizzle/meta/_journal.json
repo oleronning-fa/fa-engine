@@ -8,6 +8,13 @@
       "when": 1789037156877,
       "tag": "0000_chilly_the_order",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789110578457,
+      "tag": "0001_slim_the_stranger",
+      "breakpoints": true
     }
   ]
 }

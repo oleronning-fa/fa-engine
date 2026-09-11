@@ -12,7 +12,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "db:health": "tsx scripts/db-health.ts"
+    "db:health": "tsx scripts/db-health.ts",
+    "import:roadmap": "tsx scripts/import-roadmap.ts"
   },
   "dependencies": {
     "@astrojs/node": "^11.0.3",
@@ -21,6 +22,7 @@
     "astro": "^7.1.6",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
+    "exceljs": "^4.4.0",
     "pg-boss": "^12.30.0",
     "postgres": "^3.4.9",
     "tailwindcss": "^4.3.3"

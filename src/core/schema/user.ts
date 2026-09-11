@@ -13,8 +13,15 @@ import { boolean, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
  */
 export const appUser = pgTable('app_user', {
   id: uuid('id').primaryKey().defaultRandom(),
-  /** Google Workspace address — the natural key while OIDC isn't wired yet. */
-  email: text('email').notNull().unique(),
+  /**
+   * Google Workspace address. Nullable on purpose: the roadmap import (Sept
+   * 2026) needs `app_user` rows for ~26 Profico/Hegnar people from sheet
+   * owner columns, and inventing an email would be worse than leaving it
+   * blank until the person actually signs in via OIDC or HR confirms it.
+   * Postgres allows multiple NULLs under UNIQUE, so several unconfirmed rows
+   * don't collide.
+   */
+  email: text('email').unique(),
   /** OIDC `sub`. Null until the person has actually signed in. */
   externalId: text('external_id').unique(),
   name: text('name').notNull(),

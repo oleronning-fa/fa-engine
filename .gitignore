@@ -21,3 +21,8 @@ Thumbs.db
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Source spreadsheets for the roadmap importer — real internal data, never
+# committed. Root-anchored and named distinctly from src/modules/roadmap/import/
+# (the importer's CODE, which must NOT be ignored).
+/import-source/
