@@ -1,17 +1,77 @@
 ---
-import Base from '../layouts/Base.astro';
+import RoadmapLayout from '../layouts/RoadmapLayout.astro';
+import type { RoadmapItemType } from '../core/codesets';
+import { getAssigneesByItemIds, getBoardItems, type ItemRow } from '../modules/roadmap/view/queries';
+import { avatarColor, initials, priorityChipClass, taskStatusChip, typeIcon } from '../modules/roadmap/view/render';
+
+const items = await getBoardItems();
+const assigneesByItem = await getAssigneesByItemIds(items.map((i) => i.id));
+
+const DONE_LIMIT = 40;
+
+function inCol(it: ItemRow, col: string): boolean {
+  if (col === 'done') return it.status === 'Delivered';
+  if (it.status !== 'In Jira') return false;
+  if (col === 'neste') return it.backlogged === false && (!it.jiraSubstatus || it.jiraSubstatus === 'Todo' || it.jiraSubstatus === 'Waiting');
+  if (col === 'pabegynt') return it.jiraSubstatus === 'In progress';
+  if (col === 'review') return it.jiraSubstatus === 'CR' || it.jiraSubstatus === 'FT' || it.jiraSubstatus === 'On QA';
+  return false;
+}
+
+const COLUMNS = [
+  { key: 'neste', label: 'Neste' },
+  { key: 'pabegynt', label: 'Påbegynt' },
+  { key: 'review', label: 'Code review & testing' },
+  { key: 'done', label: 'Done' },
+] as const;
+
+const buckets = COLUMNS.map((c) => ({
+  ...c,
+  all: items.filter((it) => inCol(it, c.key)),
+}));
 ---
-<Base title="fa-engine — Roadmap" showFaChrome={false}>
-  <section class="mx-auto max-w-2xl px-6 py-16">
-    <p class="mb-2 text-sm font-medium uppercase tracking-wide text-blue-500">
-      Finansavisen · Profico
-    </p>
-    <h1 class="mb-4 text-4xl font-semibold text-gray-900">
-      fa-engine
-    </h1>
-    <p class="text-lg text-gray-600">
-      A roadmap tool for product managers and product owners across Finansavisen
-      and Profico. Nothing here yet — tell the agent what the first screen should show.
-    </p>
-  </section>
-</Base>
+<RoadmapLayout title="All items" active="list">
+  <div class="board-scroll">
+    <div class="board">
+      {buckets.map((col) => {
+        const visible = col.key === 'done' ? col.all.slice(0, DONE_LIMIT) : col.all;
+        const hidden = col.all.length - visible.length;
+        return (
+          <div class="board-col" data-col={col.key}>
+            <div class="board-col-head">
+              <span>{col.label}</span>
+              <span class="count">{col.all.length}</span>
+            </div>
+            <div class="board-col-body">
+              {visible.length === 0 && <div class="board-col-empty">Nothing here</div>}
+              {visible.map((it) => {
+                const icon = typeIcon(it.type as RoadmapItemType);
+                const prClass = priorityChipClass(it.priority);
+                const assignees = assigneesByItem.get(it.id) ?? [];
+                return (
+                  <div class="board-card">
+                    <div class="board-card-top">
+                      <span class:list={['type-icon', icon.class]}>{icon.letter}</span>
+                      {it.jiraKey ? <span class="jira-badge">{it.jiraKey}</span> : <span class="muted" style="font-size:11px">no key</span>}
+                    </div>
+                    <div class="board-card-title">{it.title}</div>
+                    <div class="board-card-foot">
+                      {prClass ? <span class:list={['chip', prClass]}>{it.priority}</span> : <span />}
+                      <div class="assignees">
+                        {assignees.length === 0 && <span class="muted">—</span>}
+                        {assignees.map((name) => (
+                          <span class="dot" style={`background:${avatarColor(name)}`} title={name}>{initials(name)}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {hidden > 0 && <div class="board-col-empty">+{hidden} more — full list coming soon</div>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</RoadmapLayout>

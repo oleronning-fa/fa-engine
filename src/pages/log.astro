@@ -1,0 +1,39 @@
+---
+import RoadmapLayout from '../layouts/RoadmapLayout.astro';
+import { getRecentLog } from '../modules/roadmap/view/queries';
+
+const rows = await getRecentLog(200);
+
+function dayKey(d: Date): string {
+  return d.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+const days = new Map<string, typeof rows>();
+for (const r of rows) {
+  const key = dayKey(new Date(r.at));
+  const list = days.get(key) ?? [];
+  list.push(r);
+  days.set(key, list);
+}
+---
+<RoadmapLayout title="Logg" active="log">
+  <p class="muted" style="font-size:12.5px;margin-bottom:14px">Every change to every item, newest first — capped at the last 200 for now.</p>
+  {rows.length === 0 && <div class="empty"><b>Nothing logged yet</b></div>}
+  {[...days.entries()].map(([day, entries]) => (
+    <div class="log-day">
+      <h3>{day}</h3>
+      <div class="log-day-list">
+        {entries.map((r) => (
+          <div class="log-row">
+            <div class="log-row-body">
+              <div class="log-row-text">
+                {r.itemType} moved to <b>{r.toStatus}{r.toSubstatus ? ` (${r.toSubstatus})` : ''}</b>
+              </div>
+              <div class="log-row-item">{r.itemTitle}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  ))}
+</RoadmapLayout>

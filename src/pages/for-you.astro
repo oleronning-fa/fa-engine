@@ -1,0 +1,39 @@
+---
+// Stand-in until real auth maps a session to a person (Phase 0 plan, step 6:
+// Google Workspace OIDC). Defaults to OC for now.
+import RoadmapLayout from '../layouts/RoadmapLayout.astro';
+import type { RoadmapItemType } from '../core/codesets';
+import { getItemsForPerson } from '../modules/roadmap/view/queries';
+import { priorityChipClass, taskStatusChip, epicStatusChip, typeIcon } from '../modules/roadmap/view/render';
+
+const PERSON = 'Ole Christian';
+const items = await getItemsForPerson(PERSON);
+---
+<RoadmapLayout title="For deg" active="foryou">
+  <p class="muted" style="font-size:12.5px;margin-bottom:14px">
+    Showing items for <b>{PERSON}</b> — stand-in until Google login maps a real session to a person.
+  </p>
+  {items.length === 0 && <div class="empty"><b>Nothing assigned right now</b></div>}
+  <div class="list-group">
+    {items.map((it) => {
+      const icon = typeIcon(it.type as RoadmapItemType);
+      const status = it.type === 'Epic' ? epicStatusChip(it.status) : taskStatusChip(it.status);
+      const roles = [
+        it.ownerName === PERSON && 'Owner (HM)',
+        it.coordinatorName === PERSON && 'Coordinator',
+      ].filter(Boolean) as string[];
+      return (
+        <div class="board-card" style="margin-bottom:8px">
+          <div class="board-card-top">
+            <span class:list={['type-icon', icon.class]}>{icon.letter}</span>
+            <span class:list={['chip', status.class]}>{status.label}</span>
+          </div>
+          <div class="board-card-title">{it.title}</div>
+          <div class="board-card-foot">
+            <div>{roles.map((r) => <span class="role-tag" style="margin-right:4px">{r}</span>)}</div>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</RoadmapLayout>

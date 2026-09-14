@@ -1,0 +1,80 @@
+---
+import '@fontsource-variable/inter';
+import '../styles/roadmap.css';
+
+interface Props {
+  /** Page title, shown in the browser tab and as the topbar breadcrumb. */
+  title: string;
+  /** Which sidebar item is active — matches the nav hrefs below. */
+  active: 'foryou' | 'list' | 'backlog' | 'epics' | 'ideas' | 'log';
+}
+const { title, active } = Astro.props;
+
+const NAV = [
+  { key: 'foryou', href: '/for-you', label: 'For deg' },
+  { key: 'list', href: '/', label: 'All items' },
+  { key: 'backlog', href: '/backlog', label: 'Backlog' },
+  { key: 'epics', href: '/epics', label: 'Epics' },
+  { key: 'ideas', href: '/idea-bank', label: 'Idea bank' },
+  { key: 'log', href: '/log', label: 'Logg' },
+] as const;
+
+const user = Astro.locals.user;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} — Fa Engine</title>
+  </head>
+  <body>
+    <div class="app">
+      <nav class="sidebar" aria-label="Modules">
+        <div class="brand">
+          <div class="brand-mark">FA</div>
+          <div>
+            <div class="brand-name">Fa Engine</div>
+            <div class="brand-sub">v1.0 · Roadmap</div>
+          </div>
+        </div>
+
+        <div class="nav-group">
+          {NAV.map((item) => (
+            <a class={`nav-item${active === item.key ? ' active' : ''}`} href={item.href}>
+              <span>{item.label}</span>
+            </a>
+          ))}
+        </div>
+
+        <div class="nav-group">
+          <div class="nav-label">Coming later</div>
+          <span class="nav-item disabled"><span>Feedback hub</span><span class="soon">v1.1</span></span>
+          <span class="nav-item disabled"><span>Weekly agent</span><span class="soon">v1.2</span></span>
+          <span class="nav-item disabled"><span>CRM</span><span class="soon">v2.0</span></span>
+        </div>
+
+        <div class="sidebar-foot">
+          <div class="avatar">{user ? user.email.slice(0, 2).toUpperCase() : 'FA'}</div>
+          <div>
+            <div class="sidebar-foot-name">{user?.email ?? 'Local dev'}</div>
+            <div class="sidebar-foot-role">Product team</div>
+          </div>
+        </div>
+      </nav>
+
+      <div class="main">
+        <div class="topbar">
+          <div class="crumb"><b>{title}</b></div>
+          <div class="topbar-actions">
+            <slot name="actions" />
+          </div>
+        </div>
+        <slot name="toolbar" />
+        <div class="content">
+          <slot />
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

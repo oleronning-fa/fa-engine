@@ -1,0 +1,312 @@
+/*
+ * Fa Engine roadmap module — visual system.
+ *
+ * Lifted verbatim from docs/fa-engine-roadmap-prototype.html (the earlier
+ * Claude sketches OC is asking to build from), which itself derives from
+ * fa-design-system.md and fa-engine-plan.md §7: the internal register — a
+ * blue-700 sidebar, grey-25 canvas, white cards, blue-500 as the only
+ * interactive colour, status/priority on a grey/blue/amber scale that never
+ * touches market red/green.
+ *
+ * Two additions beyond the prototype, at the bottom: `.st-declined` (the
+ * prototype hid Declined from its UI in v0.5; this build has 4 real declined
+ * items, so it needs a chip) and explicit Epic-status classes (Epic uses its
+ * own 3-value status set, feltkatalog §0 — reusing Task's `.st-*` classes by
+ * meaning, given their own names for clarity).
+ */
+:root{
+  /* FA brand tokens — from fa-design-system.md, unmodified */
+  --blue-50:#E6F1FC; --blue-100:#CDE3F9; --blue-200:#9AC7F4; --blue-500:#0373E3; --blue-600:#025CB6;
+  --blue-700:#024588; --blue-800:#012E5B; --blue-900:#01172D;
+  --grey-25:#F8F9F9; --grey-50:#F1F2F3; --grey-75:#EAECED; --grey-100:#D5D9DC; --grey-200:#BABFC4;
+  --grey-300:#9EA6AD; --grey-400:#838C95; --grey-500:#67737E; --grey-600:#525C65; --grey-700:#3E454C;
+  --grey-800:#292E32; --grey-900:#151719;
+  --amber-500:#FCCA27; /* reserved: "Idea / not committed" marker only — konseptmal.md */
+  --white:#FFFFFF;
+
+  /* Internal-register semantic tokens (fa-engine-plan.md §7: own scale, never market red/green) */
+  --canvas: var(--grey-25);
+  --surface: var(--white);
+  --surface-sunken: var(--grey-50);
+  --border: var(--grey-100);
+  --border-strong: var(--grey-200);
+  --text-primary: var(--grey-900);
+  --text-secondary: var(--grey-500);
+  --text-disabled: var(--grey-300);
+  --text-on-dark: var(--white);
+  --sidebar-bg: var(--blue-700);
+  --sidebar-text: var(--blue-100);
+  --sidebar-text-active: var(--white);
+  --sidebar-active-bg: rgba(255,255,255,.10);
+  --interactive: var(--blue-500);
+  --interactive-hover: var(--blue-600);
+  --interactive-tint: var(--blue-50);
+  --focus-ring: var(--blue-500);
+  --shadow-panel: 0 12px 32px rgba(1,23,45,.18);
+  --shadow-menu: 0 4px 16px rgba(21,23,25,.14);
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --canvas: #14171A;
+    --surface: #1C2024;
+    --surface-sunken: #21262B;
+    --border: #2B3238;
+    --border-strong: #384049;
+    --text-primary: #F1F2F3;
+    --text-secondary: #9EA6AD;
+    --text-disabled: #5B6570;
+    --sidebar-bg: #01305F;
+    --sidebar-text: var(--blue-200);
+    --sidebar-text-active: var(--white);
+    --sidebar-active-bg: rgba(255,255,255,.08);
+    --interactive: #358FE9;
+    --interactive-hover: #68ABEE;
+    --interactive-tint: rgba(53,143,233,.16);
+    --focus-ring: #68ABEE;
+    --shadow-panel: 0 12px 32px rgba(0,0,0,.5);
+    --shadow-menu: 0 4px 20px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --canvas: #14171A;
+  --surface: #1C2024;
+  --surface-sunken: #21262B;
+  --border: #2B3238;
+  --border-strong: #384049;
+  --text-primary: #F1F2F3;
+  --text-secondary: #9EA6AD;
+  --text-disabled: #5B6570;
+  --sidebar-bg: #01305F;
+  --sidebar-text: var(--blue-200);
+  --sidebar-text-active: var(--white);
+  --sidebar-active-bg: rgba(255,255,255,.08);
+  --interactive: #358FE9;
+  --interactive-hover: #68ABEE;
+  --interactive-tint: rgba(53,143,233,.16);
+  --focus-ring: #68ABEE;
+  --shadow-panel: 0 12px 32px rgba(0,0,0,.5);
+  --shadow-menu: 0 4px 20px rgba(0,0,0,.5);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--canvas);
+  color:var(--text-primary);
+  font:400 14px/20px "Inter Variable","Inter",sans-serif; /* i-b0 — the app-UI body size, fa-design-system.md §4.1 */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4,h5,h6,p{margin:0}
+button,input,select,textarea{font-family:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--focus-ring);outline-offset:1px;border-radius:4px}
+a{color:var(--interactive)}
+::selection{background:var(--interactive-tint)}
+
+.app{display:grid;grid-template-columns:216px 1fr;min-height:100vh}
+
+/* ---------- Sidebar ---------- */
+.sidebar{
+  background:var(--sidebar-bg); color:var(--sidebar-text);
+  display:flex; flex-direction:column; gap:2px; padding:16px 12px;
+  position:sticky; top:0; height:100vh;
+}
+.brand{display:flex;align-items:center;gap:8px;padding:6px 8px 18px;color:var(--sidebar-text-active)}
+.brand-mark{width:26px;height:26px;border-radius:6px;background:var(--white);color:var(--blue-700);
+  display:grid;place-items:center;font-weight:800;font-size:13px;letter-spacing:-.02em}
+.brand-name{font-weight:700;font-size:14px;letter-spacing:-.005em}
+.brand-sub{font-size:11px;color:var(--sidebar-text);opacity:.75;margin-top:-2px}
+
+.nav-group{margin-top:14px}
+.nav-label{font:600 10px/14px "Inter Variable","Inter",sans-serif;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--sidebar-text);opacity:.6;padding:4px 8px;margin-top:4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:6px;
+  color:var(--sidebar-text);font-size:13px;font-weight:500;text-decoration:none;border:0;background:none;
+  width:100%;text-align:left}
+.nav-item svg{opacity:.85;flex:none}
+.nav-item:hover{background:rgba(255,255,255,.06);color:var(--sidebar-text-active)}
+.nav-item.active{background:var(--sidebar-active-bg);color:var(--sidebar-text-active)}
+.nav-item.disabled{opacity:.45;cursor:default}
+.nav-item.disabled:hover{background:none;color:var(--sidebar-text)}
+.nav-item .soon{margin-left:auto;font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  background:rgba(255,255,255,.12);padding:2px 5px;border-radius:4px}
+
+.sidebar-foot{margin-top:auto;display:flex;align-items:center;gap:8px;padding:8px;border-top:1px solid rgba(255,255,255,.12)}
+.avatar{width:24px;height:24px;border-radius:50%;background:var(--blue-500);color:#fff;font-weight:700;font-size:11px;
+  display:grid;place-items:center;flex:none}
+.sidebar-foot-name{font-size:12px;font-weight:600;color:var(--sidebar-text-active)}
+.sidebar-foot-role{font-size:10.5px;color:var(--sidebar-text);opacity:.7}
+
+/* ---------- Main ---------- */
+.main{display:flex;flex-direction:column;min-width:0}
+.topbar{display:flex;align-items:center;gap:12px;padding:14px 24px;border-bottom:1px solid var(--border)}
+.crumb{font-size:13px;color:var(--text-secondary);white-space:nowrap}
+.crumb b{color:var(--text-primary);font-weight:600}
+
+.topbar-actions{display:flex;gap:8px;margin-left:auto}
+.btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:100px;border:1px solid transparent;
+  background:var(--surface-sunken);color:var(--text-primary);font-size:12.5px;font-weight:600;white-space:nowrap;
+  transition:background .15s cubic-bezier(.4,0,.2,1)}
+.btn:hover{background:var(--border)}
+.btn-primary{background:var(--interactive);color:#fff}
+.btn-primary:hover{background:var(--interactive-hover)}
+.btn-outline{background:transparent;border:1px solid var(--border-strong)}
+.btn-outline:hover{border-color:var(--interactive);color:var(--interactive)}
+.btn-ghost{background:transparent}
+.btn-ghost:hover{background:var(--surface-sunken)}
+.btn-sm{height:26px;padding:0 9px;font-size:12px;border-radius:6px}
+.btn[disabled]{opacity:.5;cursor:default;pointer-events:none}
+
+.toolbar{display:flex;align-items:center;gap:8px;padding:12px 24px;flex-wrap:wrap}
+.select{height:30px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-primary);
+  font-size:12.5px;padding:0 8px;font-weight:500}
+.toolbar .divider{width:1px;height:18px;background:var(--border);margin:0 2px}
+.toolbar-spacer{flex:1}
+.result-count{font-size:12.5px;color:var(--text-secondary)}
+
+.content{padding:0 24px 40px;flex:1;min-width:0}
+
+/* ---------- Board (All items) ---------- */
+.board-scroll{overflow-x:auto;padding-bottom:8px}
+.board{display:flex;gap:12px;align-items:flex-start;min-height:220px}
+.board-col{flex:0 0 244px;display:flex;flex-direction:column;background:var(--surface-sunken);border:1px solid var(--border);
+  border-radius:8px;max-height:calc(100vh - 230px)}
+.board-col-head{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:10px 12px;
+  font:700 11.5px/16px "Inter Variable","Inter",sans-serif;text-transform:uppercase;letter-spacing:.03em;color:var(--text-secondary);
+  border-bottom:1px solid var(--border)}
+.board-col-head .count{font:700 11px/1 "Inter Variable","Inter",sans-serif;background:var(--border);color:var(--text-secondary);
+  padding:2px 7px;border-radius:100px}
+.board-col[data-col="done"] .board-col-head .count{background:var(--grey-900);color:#fff}
+.board-col-body{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:8px;min-height:64px}
+.board-col-empty{font-size:11.5px;color:var(--text-disabled);text-align:center;padding:14px 4px}
+.board-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;
+  display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit}
+.board-card:hover{border-color:var(--interactive)}
+.board-card-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.board-card-title{font-size:12.5px;font-weight:600;color:var(--text-primary);line-height:1.4}
+.board-card-foot{display:flex;align-items:center;justify-content:space-between;gap:6px}
+
+.person{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.person .dot{width:18px;height:18px;border-radius:50%;font-size:9.5px;font-weight:700;color:#fff;display:grid;place-items:center;flex:none}
+.assignees{display:flex}
+.assignees .dot{margin-left:-6px;border:2px solid var(--surface)}
+.assignees .dot:first-child{margin-left:0}
+.muted{color:var(--text-disabled)}
+.card-updated{font-size:11px;color:var(--text-disabled);margin-top:6px}
+.jira-badge{display:inline-flex;align-items:center;font:600 11px/16px "Inter Variable","Inter",sans-serif;color:var(--text-secondary);
+  background:var(--surface-sunken);border:1px solid var(--border);border-radius:4px;padding:0 5px;white-space:nowrap}
+.type-icon{width:16px;height:16px;border-radius:4px;display:grid;place-items:center;flex:none;font-size:9.5px;font-weight:800;color:#fff}
+.type-epic{background:var(--grey-900)}
+.type-task{background:var(--blue-500)}
+.type-bug{background:var(--amber-500);color:var(--grey-900)}
+.type-research{background:var(--grey-500)}
+
+/* status / priority chips — internal scale: grey / blue / amber, never market red-green */
+.chip{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:100px;font:600 11.5px/1 "Inter Variable","Inter",sans-serif;
+  border:1px solid transparent; white-space:nowrap}
+.dot-sm{width:6px;height:6px;border-radius:50%;flex:none}
+
+.st-idea{background:var(--surface-sunken);color:var(--text-primary);border-color:var(--border)}
+.st-idea .dot-sm{background:var(--amber-500)}
+.st-review{background:var(--surface-sunken);color:var(--text-secondary);border-color:var(--border)}
+.st-review .dot-sm{background:var(--grey-400)}
+.st-prioritized{background:var(--blue-50);color:var(--blue-600)}
+.st-prioritized .dot-sm{background:var(--blue-500)}
+.st-jira{background:var(--blue-700);color:#fff}
+.st-jira .dot-sm{background:#fff}
+.st-delivered{background:var(--grey-900);color:#fff}
+.st-delivered .dot-sm{background:#fff}
+
+.pr-hotfix{background:var(--blue-900);color:#fff}
+.pr-high{background:var(--blue-50);color:var(--blue-600)}
+.pr-medium{background:var(--surface-sunken);color:var(--text-secondary);border:1px solid var(--border)}
+.pr-low{background:transparent;color:var(--text-disabled);border:1px solid var(--border)}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .st-prioritized{background:rgba(53,143,233,.16);color:#68ABEE}
+  :root:not([data-theme="light"]) .pr-high{background:rgba(53,143,233,.16);color:#68ABEE}
+}
+:root[data-theme="dark"] .st-prioritized{background:rgba(53,143,233,.16);color:#68ABEE}
+:root[data-theme="dark"] .pr-high{background:rgba(53,143,233,.16);color:#68ABEE}
+
+.area-tag{font-size:12px;color:var(--text-secondary)}
+.size-tag{font-size:12px;color:var(--text-secondary);font-weight:600}
+
+/* ---------- Empty state ---------- */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:64px 24px;text-align:center;
+  color:var(--text-secondary)}
+.empty svg{opacity:.5;margin-bottom:6px}
+.empty b{color:var(--text-primary);font-size:14px}
+
+/* ---------- Epics grid ---------- */
+.epics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-top:4px}
+.epic-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:10px;
+  text-decoration:none;color:inherit;transition:border-color .15s}
+.epic-card:hover{border-color:var(--interactive)}
+.epic-card-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.epic-card h4{font:700 15px/22px "Inter Variable","Inter",sans-serif}
+.epic-card .desc{font-size:12.5px;color:var(--text-secondary);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.epic-progress{display:flex;flex-direction:column;gap:5px}
+.epic-progress-bar{height:6px;border-radius:100px;background:var(--surface-sunken);overflow:hidden}
+.epic-progress-fill{height:100%;background:var(--interactive);border-radius:100px}
+.epic-progress-label{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text-secondary);font-weight:600}
+.epic-card-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px}
+
+/* ---------- For you / Log — shared section-group heading ---------- */
+.list-group{margin-bottom:22px}
+.list-group h3{font:700 13px/20px "Inter Variable","Inter",sans-serif;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.03em;
+  margin-bottom:8px}
+.role-tag{display:inline-flex;align-items:center;font:700 10px/14px "Inter Variable","Inter",sans-serif;text-transform:uppercase;letter-spacing:.03em;
+  color:var(--text-secondary);background:var(--surface-sunken);border:1px solid var(--border);border-radius:4px;padding:2px 6px}
+
+/* ---------- Log view ---------- */
+.log-day{margin-bottom:20px}
+.log-day h3{font:700 13px/20px "Inter Variable","Inter",sans-serif;color:var(--text-secondary);letter-spacing:.02em;margin-bottom:6px}
+.log-day-list{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.log-row{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-top:1px solid var(--border)}
+.log-row:first-child{border-top:none}
+.log-row-body{min-width:0;flex:1}
+.log-row-text{font-size:13px;line-height:1.5;color:var(--text-primary)}
+.log-row-item{font-size:11.5px;color:var(--text-secondary);margin-top:2px;display:flex;align-items:center;gap:5px}
+
+/* ---------- Ideas view ---------- */
+.idea-group{margin-bottom:22px}
+.idea-group h3{font:700 13px/20px "Inter Variable","Inter",sans-serif;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.03em;
+  margin-bottom:8px}
+.idea-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.idea-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;text-decoration:none;color:inherit}
+.idea-card:hover{border-color:var(--interactive)}
+.idea-card-top{display:flex;justify-content:space-between;gap:6px;margin-bottom:6px}
+.idea-card h5{font:600 13px/18px "Inter Variable","Inter",sans-serif}
+.idea-card .desc{font-size:12px;color:var(--text-secondary);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.idea-card .foot{margin-top:8px;display:flex;justify-content:space-between;align-items:center}
+.not-committed{display:inline-flex;align-items:center;gap:5px;font:700 10px/14px "Inter Variable","Inter",sans-serif;text-transform:uppercase;letter-spacing:.03em;
+  color:var(--grey-800);background:rgba(252,202,39,.28);border:1px solid rgba(252,202,39,.55);border-radius:4px;padding:2px 6px}
+:root[data-theme="dark"] .not-committed{color:var(--amber-500);background:rgba(252,202,39,.14);border-color:rgba(252,202,39,.35)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .not-committed{color:var(--amber-500);background:rgba(252,202,39,.14);border-color:rgba(252,202,39,.35)}}
+
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+@media (max-width:860px){
+  .app{grid-template-columns:64px 1fr}
+  .brand-name,.brand-sub,.nav-item span:not(.soon),.sidebar-foot-name,.sidebar-foot-role{display:none}
+  .nav-item{justify-content:center}
+}
+
+/* ---------- Additions beyond the prototype ---------- */
+
+/* Declined — hidden from the prototype's UI (feltkatalog §0, "midlertidig
+   fjernet i v0.5"); this build has 4 real declined items, so it needs a chip.
+   Muted, not red — the internal scale never uses market colours. */
+.st-declined{background:var(--surface-sunken);color:var(--text-disabled);border-color:var(--border);text-decoration:line-through}
+.st-declined .dot-sm{background:var(--text-disabled)}
+
+/* Epic's own 3-value status set (feltkatalog §0) — same visual weight as the
+   nearest Task equivalent, named for what they actually mean on an Epic. */
+.st-epic-not-started{background:var(--surface-sunken);color:var(--text-secondary);border-color:var(--border)}
+.st-epic-not-started .dot-sm{background:var(--grey-400)}
+.st-epic-started{background:var(--blue-50);color:var(--blue-600)}
+.st-epic-started .dot-sm{background:var(--blue-500)}
+.st-epic-archived{background:var(--grey-900);color:#fff}
+.st-epic-archived .dot-sm{background:#fff}

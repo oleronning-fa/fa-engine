@@ -1,4 +1,11 @@
 // @ts-check
+// Loads .env into process.env for this Node process. Astro's own astro:env
+// system only populates a given var lazily, the first time something imports
+// it from 'astro:env/server' — and DATABASE_URL is deliberately read directly
+// via process.env in src/core/db.ts instead (so the same module also works
+// from plain Node scripts, which astro:env/server can't). Without this,
+// DATABASE_URL never reaches process.env under `astro dev` / `astro build`.
+import 'dotenv/config';
 import { defineConfig, envField } from 'astro/config';
 import node from '@astrojs/node';
 import tailwindcss from '@tailwindcss/vite';

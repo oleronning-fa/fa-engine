@@ -1,0 +1,33 @@
+---
+import RoadmapLayout from '../layouts/RoadmapLayout.astro';
+import { getIdeaBankItems, type ItemRow } from '../modules/roadmap/view/queries';
+import { areaLabel, isAreaId } from '../core/codesets';
+
+const items = await getIdeaBankItems();
+const GROUPS = ['Idea', 'Under review', 'Prioritized'] as const;
+const grouped = GROUPS.map((status) => ({ status, items: items.filter((i) => i.status === status) }));
+---
+<RoadmapLayout title="Idea bank" active="ideas">
+  {grouped.every((g) => g.items.length === 0) && (
+    <div class="empty"><b>Nothing here yet</b><span>Ideas land here before they're picked up.</span></div>
+  )}
+  {grouped.map((g) => g.items.length > 0 && (
+    <div class="idea-group">
+      <h3>{g.status} ({g.items.length})</h3>
+      <div class="idea-cards">
+        {g.items.map((it: ItemRow) => (
+          <div class="idea-card">
+            <div class="idea-card-top">
+              <span class="not-committed">Concept — not committed</span>
+            </div>
+            <h5>{it.title}</h5>
+            <div class="foot">
+              <span class="area-tag">{it.area && isAreaId(it.area) ? areaLabel(it.area) : '—'}</span>
+              {it.ownerName && <span class="muted" style="font-size:11px">{it.ownerName}</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  ))}
+</RoadmapLayout>

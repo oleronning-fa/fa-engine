@@ -1,0 +1,47 @@
+---
+import RoadmapLayout from '../layouts/RoadmapLayout.astro';
+import { getAssigneesByItemIds, getEpics } from '../modules/roadmap/view/queries';
+import { avatarColor, epicStatusChip, initials } from '../modules/roadmap/view/render';
+import { areaLabel, isAreaId } from '../core/codesets';
+
+const epics = await getEpics();
+const assigneesByItem = await getAssigneesByItemIds(epics.map((e) => e.id));
+---
+<RoadmapLayout title="Epics" active="epics">
+  <div class="epics-grid">
+    {epics.map((epic) => {
+      const status = epicStatusChip(epic.status);
+      const pct = epic.totalChildren > 0 ? Math.round((epic.deliveredChildren / epic.totalChildren) * 100) : null;
+      const assignees = assigneesByItem.get(epic.id) ?? [];
+      return (
+        <div class="epic-card">
+          <div class="epic-card-head">
+            <h4>{epic.title}</h4>
+            <span class:list={['chip', status.class]}>{status.label}</span>
+          </div>
+          {epic.description && <div class="desc">{epic.description}</div>}
+          {pct !== null ? (
+            <div class="epic-progress">
+              <div class="epic-progress-bar"><div class="epic-progress-fill" style={`width:${pct}%`} /></div>
+              <div class="epic-progress-label">
+                <span>{epic.deliveredChildren} of {epic.totalChildren} delivered</span>
+                <span>{pct}%</span>
+              </div>
+            </div>
+          ) : (
+            <div class="muted" style="font-size:11.5px">No linked tasks yet</div>
+          )}
+          <div class="epic-card-foot">
+            <span class="area-tag">{epic.area && isAreaId(epic.area) ? areaLabel(epic.area) : 'Flere områder'}</span>
+            <div class="assignees">
+              {assignees.length === 0 && <span class="muted">—</span>}
+              {assignees.map((name) => (
+                <span class="dot" style={`background:${avatarColor(name)}`} title={name}>{initials(name)}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</RoadmapLayout>

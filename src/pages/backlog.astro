@@ -1,0 +1,42 @@
+---
+import RoadmapLayout from '../layouts/RoadmapLayout.astro';
+import type { RoadmapItemType } from '../core/codesets';
+import { getAssigneesByItemIds, getBacklogItems } from '../modules/roadmap/view/queries';
+import { avatarColor, initials, priorityChipClass, typeIcon } from '../modules/roadmap/view/render';
+
+const items = await getBacklogItems();
+const assigneesByItem = await getAssigneesByItemIds(items.map((i) => i.id));
+---
+<RoadmapLayout title="Backlog" active="backlog">
+  <p class="muted" style="font-size:12.5px;margin-bottom:14px">
+    In Jira, but not yet picked up — has a key attached, work hasn't started. Feltkatalog §5b.
+  </p>
+  {items.length === 0 && (
+    <div class="empty"><b>Nothing in the backlog right now</b><span>Items land here once a Jira key is attached to an idea.</span></div>
+  )}
+  <div class="idea-cards">
+    {items.map((it) => {
+      const icon = typeIcon(it.type as RoadmapItemType);
+      const prClass = priorityChipClass(it.priority);
+      const assignees = assigneesByItem.get(it.id) ?? [];
+      return (
+        <div class="board-card">
+          <div class="board-card-top">
+            <span class:list={['type-icon', icon.class]}>{icon.letter}</span>
+            {it.jiraKey && <span class="jira-badge">{it.jiraKey}</span>}
+          </div>
+          <div class="board-card-title">{it.title}</div>
+          <div class="board-card-foot">
+            {prClass ? <span class:list={['chip', prClass]}>{it.priority}</span> : <span />}
+            <div class="assignees">
+              {assignees.length === 0 && <span class="muted">—</span>}
+              {assignees.map((name) => (
+                <span class="dot" style={`background:${avatarColor(name)}`} title={name}>{initials(name)}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</RoadmapLayout>
