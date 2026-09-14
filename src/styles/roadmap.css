@@ -294,6 +294,50 @@ a{color:var(--interactive)}
   .nav-item{justify-content:center}
 }
 
+/* ---------- Create buttons (New Epic / New Idea / New Task) ---------- */
+.btn-create{height:34px;padding:0 14px 0 12px;border-radius:8px;font-size:13px;font-weight:700;color:#fff;
+  box-shadow:0 1px 2px rgba(1,23,45,.16)}
+.btn-create svg{opacity:.9}
+.btn-create-epic{background:var(--grey-900)}
+.btn-create-epic:hover{background:#000}
+.btn-create-task{background:var(--interactive)}
+.btn-create-task:hover{background:var(--interactive-hover)}
+
+/* ---------- Create dialogs — native <dialog>, its own backdrop, no JS overlay needed ---------- */
+dialog.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-panel);
+  width:600px;max-width:92vw;padding:0;margin:6vh auto auto;max-height:88vh;color:var(--text-primary)}
+dialog.modal::backdrop{background:rgba(1,23,45,.42)}
+:root[data-theme="dark"] dialog.modal::backdrop{background:rgba(0,0,0,.6)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) dialog.modal::backdrop{background:rgba(0,0,0,.6)}}
+.modal-head{display:flex;align-items:center;gap:10px;padding:18px 20px;border-bottom:1px solid var(--border)}
+.modal-head .kind{width:26px;height:26px;border-radius:6px;display:grid;place-items:center;font-weight:800;color:#fff;font-size:11px;flex:none}
+.modal-head h3{font:700 15px/22px "Inter Variable","Inter",sans-serif}
+.modal-head p{font-size:12px;color:var(--text-secondary)}
+.modal-close{margin-left:auto;width:28px;height:28px;border-radius:6px;background:none;border:0;color:var(--text-secondary);
+  display:grid;place-items:center;font-size:14px}
+.modal-close:hover{background:var(--surface-sunken);color:var(--text-primary)}
+.modal-body{padding:18px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;max-height:calc(88vh - 130px)}
+.modal-foot{display:flex;align-items:center;gap:8px;padding:14px 20px;border-top:1px solid var(--border);background:var(--surface-sunken);
+  border-radius:0 0 16px 16px}
+.modal-foot .hint{font-size:11.5px;color:var(--text-secondary)}
+.modal-foot-spacer{flex:1}
+
+.field{display:flex;flex-direction:column;gap:6px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field label{font:600 11.5px/16px "Inter Variable","Inter",sans-serif;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.03em}
+.field label .opt{text-transform:none;font-weight:500;color:var(--text-disabled);letter-spacing:0}
+.field input[type=text],.field input[type=date],.field textarea,.field select{
+  width:100%;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary);
+  padding:8px 10px;font-size:13px;font-family:inherit}
+.field select[multiple]{min-height:88px}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--interactive);outline:none}
+.field textarea{resize:vertical;min-height:64px;line-height:1.5}
+.field textarea.notes{min-height:110px}
+.field .help{font-size:11.5px;color:var(--text-secondary);line-height:1.4}
+.section-divider{display:flex;align-items:center;gap:8px;margin-top:4px}
+.section-divider span{font:700 10.5px/14px "Inter Variable","Inter",sans-serif;text-transform:uppercase;letter-spacing:.05em;color:var(--text-disabled);white-space:nowrap}
+.section-divider::after{content:"";flex:1;height:1px;background:var(--border)}
+
 /* ---------- Additions beyond the prototype ---------- */
 
 /* Declined — hidden from the prototype's UI (feltkatalog §0, "midlertidig

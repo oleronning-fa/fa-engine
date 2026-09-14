@@ -15,6 +15,13 @@
       "when": 1789110578457,
       "tag": "0001_slim_the_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789384993490,
+      "tag": "0002_vengeful_solo",
+      "breakpoints": true
     }
   ]
 }

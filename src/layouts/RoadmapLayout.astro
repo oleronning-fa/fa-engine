@@ -1,6 +1,8 @@
 ---
 import '@fontsource-variable/inter';
 import '../styles/roadmap.css';
+import { AREAS } from '../core/codesets';
+import { getAllUsers, getEpicOptions } from '../modules/roadmap/view/queries';
 
 interface Props {
   /** Page title, shown in the browser tab and as the topbar breadcrumb. */
@@ -20,6 +22,10 @@ const NAV = [
 ] as const;
 
 const user = Astro.locals.user;
+
+// Shared across all three create dialogs, fetched once per page.
+const people = await getAllUsers();
+const epicOptions = await getEpicOptions();
 ---
 <!doctype html>
 <html lang="en">
@@ -68,6 +74,18 @@ const user = Astro.locals.user;
           <div class="crumb"><b>{title}</b></div>
           <div class="topbar-actions">
             <slot name="actions" />
+            <button class="btn btn-create btn-create-epic" type="button" data-open-dialog="epicDialog">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              New Epic
+            </button>
+            <button class="btn btn-outline" type="button" data-open-dialog="ideaDialog">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              New Idea
+            </button>
+            <button class="btn btn-create btn-create-task" type="button" data-open-dialog="taskDialog">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              New Task
+            </button>
           </div>
         </div>
         <slot name="toolbar" />
@@ -76,5 +94,235 @@ const user = Astro.locals.user;
         </div>
       </div>
     </div>
+
+    <!-- ================= NEW EPIC ================= -->
+    <dialog class="modal" id="epicDialog">
+      <form method="POST" action="/api/roadmap-items">
+        <input type="hidden" name="kind" value="epic" />
+        <div class="modal-head">
+          <div class="kind" style="background:var(--grey-900)">E</div>
+          <div>
+            <h3>New Epic</h3>
+            <p>A long-term workstream — roadmap-krav §2</p>
+          </div>
+          <button class="modal-close" type="button" data-close-dialog aria-label="Close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label for="epTitle">Title</label>
+            <input type="text" id="epTitle" name="title" placeholder="e.g. Redpill to AWS" required />
+          </div>
+          <div class="field">
+            <label for="epDesc">Description <span class="opt">(what, and why)</span></label>
+            <textarea id="epDesc" name="description" placeholder="Short context for anyone landing here for the first time…"></textarea>
+          </div>
+          <div class="field">
+            <label for="epAssignees">Team <span class="opt">— which team can work on it</span></label>
+            <select id="epAssignees" name="assigneeIds" multiple>
+              {people.map((p) => <option value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div class="field">
+            <label for="epTarget">Estimated delivery <span class="opt">(optional — most epics have none)</span></label>
+            <input type="date" id="epTarget" name="targetDate" />
+          </div>
+          <div class="field">
+            <div class="help">That's it — owner, area, status, comments and sources can be filled in later. New epics start as <b>Ikke påbegynt</b>.</div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <div class="modal-foot-spacer"></div>
+          <button class="btn btn-ghost" type="button" data-close-dialog>Cancel</button>
+          <button class="btn btn-primary" type="submit">Create Epic</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- ================= NEW IDEA (same simplified fields as New Epic — idebank §1) ================= -->
+    <dialog class="modal" id="ideaDialog">
+      <form method="POST" action="/api/roadmap-items">
+        <input type="hidden" name="kind" value="idea" />
+        <div class="modal-head">
+          <div class="kind" style="background:var(--grey-700)">I</div>
+          <div>
+            <h3>New Idea</h3>
+            <p>Not in Jira, nothing promised — idebank §1</p>
+          </div>
+          <button class="modal-close" type="button" data-close-dialog aria-label="Close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label for="idTitle">Title</label>
+            <input type="text" id="idTitle" name="title" placeholder="e.g. Add maps to articles" required />
+          </div>
+          <div class="field">
+            <label for="idDesc">Description <span class="opt">(what, and why)</span></label>
+            <textarea id="idDesc" name="description" placeholder="Short context for anyone landing here for the first time…"></textarea>
+          </div>
+          <div class="field">
+            <label for="idAssignees">Team <span class="opt">— which team can work on it</span></label>
+            <select id="idAssignees" name="assigneeIds" multiple>
+              {people.map((p) => <option value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div class="field">
+            <label for="idTarget">Estimated delivery <span class="opt">(optional)</span></label>
+            <input type="date" id="idTarget" name="targetDate" />
+          </div>
+          <div class="field">
+            <div class="help">That's it — owner, area, priority, size and a Jira key can be filled in later. New ideas start as type <b>Task</b>, status <b>Idea</b>, in the idea bank.</div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <div class="modal-foot-spacer"></div>
+          <button class="btn btn-ghost" type="button" data-close-dialog>Cancel</button>
+          <button class="btn btn-primary" type="submit">Create Idea</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- ================= NEW TASK ================= -->
+    <dialog class="modal" id="taskDialog">
+      <form method="POST" action="/api/roadmap-items">
+        <input type="hidden" name="kind" value="task" />
+        <div class="modal-head">
+          <div class="kind" style="background:var(--blue-500)">T</div>
+          <div>
+            <h3>New Task</h3>
+            <p>A concrete, shippable piece of work — feltkatalog §3</p>
+          </div>
+          <button class="modal-close" type="button" data-close-dialog aria-label="Close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="field-row">
+            <div class="field">
+              <label for="tkTitle">Title</label>
+              <input type="text" id="tkTitle" name="title" placeholder="e.g. Fix pagination on Watchlist table" required />
+            </div>
+            <div class="field">
+              <label for="tkType">Type</label>
+              <select id="tkType" name="type">
+                <option>Task</option><option>Bug</option><option>Research</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="tkDesc">Description <span class="opt">(what, and why)</span></label>
+            <textarea id="tkDesc" name="description" placeholder="Short context — what needs to happen and why it matters…"></textarea>
+          </div>
+          <div class="field">
+            <label for="tkNotes">Notes <span class="opt">(long free text — not on Epic)</span></label>
+            <textarea class="notes" id="tkNotes" name="notes" placeholder="Anything that doesn't fit above: pasted context, background, things to remember. No structure required."></textarea>
+            <div class="help">Free text, written by a person. Never auto-filled — feltkatalog §4.</div>
+          </div>
+
+          <div class="section-divider"><span>Placement</span></div>
+          <div class="field-row">
+            <div class="field">
+              <label for="tkArea">Area <span class="opt">(required)</span></label>
+              <select id="tkArea" name="area" required>
+                <option value="">Choose an area…</option>
+                {AREAS.map((a) => <option value={a.id}>{a.label}</option>)}
+              </select>
+            </div>
+            <div class="field">
+              <label for="tkParent">Parent Epic <span class="opt">(optional)</span></label>
+              <select id="tkParent" name="parentId">
+                <option value="">No parent</option>
+                {epicOptions.map((e) => <option value={e.id}>{e.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div class="section-divider"><span>Ownership &amp; status</span></div>
+          <div class="field-row">
+            <div class="field">
+              <label for="tkHmOwner">Owner <span class="opt">(Hegnar Media)</span></label>
+              <select id="tkHmOwner" name="ownerId">
+                <option value="">Not set</option>
+                {people.map((p) => <option value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            <div class="field">
+              <label for="tkOwner">Coordinator <span class="opt">(Profico)</span></label>
+              <select id="tkOwner" name="coordinatorId">
+                <option value="">Not set</option>
+                {people.map((p) => <option value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="tkStatus">Status</label>
+            <select id="tkStatus" name="status">
+              <option>Idea</option><option>Under review</option><option>Prioritized</option>
+              <option>In Jira</option><option>Delivered</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="tkAssignees">Assignees (Team)</label>
+            <select id="tkAssignees" name="assigneeIds" multiple>
+              {people.map((p) => <option value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+
+          <div class="section-divider"><span>Estimate &amp; tracking</span></div>
+          <div class="field-row">
+            <div class="field">
+              <label for="tkPriority">Priority</label>
+              <select id="tkPriority" name="priority">
+                <option>Medium</option><option>Hotfix</option><option>High</option><option>Low</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="tkSize">Size <span class="opt">(optional t-shirt, never hours)</span></label>
+              <select id="tkSize" name="size">
+                <option value="">—</option><option>S</option><option>M</option><option>L</option><option>Ongoing</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="tkTarget">Target date <span class="opt">(optional)</span></label>
+              <input type="date" id="tkTarget" name="targetDate" />
+            </div>
+            <div class="field">
+              <label for="tkJira">Jira key <span class="opt">(optional, not unique)</span></label>
+              <input type="text" id="tkJira" name="jiraKey" placeholder="e.g. FCK-3172" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="tkDiscipline"><input type="checkbox" id="tkDiscipline" name="discipline" style="width:auto;margin-right:6px;vertical-align:-1px" /> Design discipline</label>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <div class="modal-foot-spacer"></div>
+          <button class="btn btn-ghost" type="button" data-close-dialog>Cancel</button>
+          <button class="btn btn-primary" type="submit">Create Task</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script>
+      // Native <dialog> — showModal()/close() are the platform's own overlay +
+      // focus trap + ESC-to-close. This is the only JS on the page.
+      document.querySelectorAll<HTMLButtonElement>('[data-open-dialog]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.openDialog;
+          const dialog = id && document.getElementById(id);
+          if (dialog instanceof HTMLDialogElement) dialog.showModal();
+        });
+      });
+      document.querySelectorAll<HTMLButtonElement>('[data-close-dialog]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          btn.closest('dialog')?.close();
+        });
+      });
+      // Click on the backdrop (the dialog element itself, outside its content box) closes it.
+      document.querySelectorAll<HTMLDialogElement>('dialog.modal').forEach((dialog) => {
+        dialog.addEventListener('click', (e) => {
+          if (e.target === dialog) dialog.close();
+        });
+      });
+    </script>
   </body>
 </html>

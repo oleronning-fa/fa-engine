@@ -41,6 +41,12 @@ export const roadmapItem = pgTable(
     rawTitle: text('raw_title'),
     /** Short markdown context — the row-under-the-title convention as a real field. */
     description: text('description'),
+    /**
+     * Long free-text field — Task/Bug/Research only, not meaningful on Epic
+     * (feltkatalog §3). Deliberately unstructured: pasted context, background,
+     * things to remember. Never AI-filled at creation (§6, "bevisst utelatt").
+     */
+    notes: text('notes'),
     /** One of `AREA_IDS`. Required on Task, optional on Epic (enforced in domain code). */
     area: text('area'),
     /** "Owner, Hegnar Media" — business/product owner (OC, Magnus). */

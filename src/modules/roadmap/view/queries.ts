@@ -171,6 +171,25 @@ export async function getRecentLog(limit = 200): Promise<LogRow[]> {
     .limit(limit);
 }
 
+export interface PersonOption {
+  id: string;
+  name: string;
+}
+
+/** Every known person — for the assignee/owner/coordinator pickers on the create forms. */
+export async function getAllUsers(): Promise<PersonOption[]> {
+  return db.select({ id: appUser.id, name: appUser.name }).from(appUser).orderBy(appUser.name);
+}
+
+/** Epic id + title only — for the "Parent Epic" picker on the New Task form. */
+export async function getEpicOptions(): Promise<PersonOption[]> {
+  return db
+    .select({ id: roadmapItem.id, name: roadmapItem.title })
+    .from(roadmapItem)
+    .where(eq(roadmapItem.type, 'Epic'))
+    .orderBy(roadmapItem.title);
+}
+
 export async function getItemCount(): Promise<{ total: number; epics: number }> {
   const [row] = await db
     .select({

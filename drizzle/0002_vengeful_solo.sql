@@ -1,0 +1,1 @@
+ALTER TABLE "roadmap_item" ADD COLUMN "notes" text;
