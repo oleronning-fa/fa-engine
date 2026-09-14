@@ -37,7 +37,12 @@ RUN addgroup -S app && adduser -S app -G app
 COPY --from=prod-deps --chown=app:app /app/node_modules ./node_modules
 COPY --from=build --chown=app:app /app/dist ./dist
 COPY --from=build --chown=app:app /app/package.json ./package.json
+# Schema migration at boot — see scripts/migrate.mjs. Uses drizzle-orm's own
+# migrator (a prod dependency), not drizzle-kit, so no dev tooling is needed
+# in this image. Never run migrations any other way against this database.
+COPY --from=build --chown=app:app /app/drizzle ./drizzle
+COPY --from=build --chown=app:app /app/scripts/migrate.mjs ./scripts/migrate.mjs
 USER app
 
 EXPOSE 3000
-CMD ["node", "./dist/server/entry.mjs"]
+CMD ["sh", "-c", "node scripts/migrate.mjs && node ./dist/server/entry.mjs"]
