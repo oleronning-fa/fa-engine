@@ -2,7 +2,7 @@
  * Read queries for the roadmap views. All server-side, all real data — no
  * fixtures. Kept separate from the pages so the pages stay thin.
  */
-import { aliasedTable, and, desc, eq, inArray, ne, sql, type SQL } from 'drizzle-orm';
+import { aliasedTable, and, desc, eq, inArray, isNull, ne, sql, type SQL } from 'drizzle-orm';
 import { db } from '../../../core/db';
 import { appUser, roadmapItem, roadmapItemAssignee, roadmapStatusLog } from '../../../core/schema';
 
@@ -111,7 +111,7 @@ export async function getEpics(): Promise<EpicRow[]> {
     .from(roadmapItem)
     .leftJoin(owner, eq(roadmapItem.ownerId, owner.id))
     .leftJoin(coordinator, eq(roadmapItem.coordinatorId, coordinator.id))
-    .where(eq(roadmapItem.type, 'Epic'))
+    .where(and(eq(roadmapItem.type, 'Epic'), isNull(roadmapItem.archivedAt)))
     .orderBy(roadmapItem.title);
 
   const epicIds = rows.map((r) => r.id);
@@ -196,7 +196,7 @@ export async function getEpicOptions(): Promise<PersonOption[]> {
   return db
     .select({ id: roadmapItem.id, name: roadmapItem.title })
     .from(roadmapItem)
-    .where(eq(roadmapItem.type, 'Epic'))
+    .where(and(eq(roadmapItem.type, 'Epic'), isNull(roadmapItem.archivedAt)))
     .orderBy(roadmapItem.title);
 }
 

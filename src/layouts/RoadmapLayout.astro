@@ -347,6 +347,13 @@ const epicOptions = await getEpicOptions();
           if (e.target === dialog) dialog.close();
         });
       });
+      // A form with data-confirm asks before submitting — used by destructive
+      // one-click actions (e.g. "Remove" on an Epic card).
+      document.querySelectorAll<HTMLFormElement>('form[data-confirm]').forEach((form) => {
+        form.addEventListener('submit', (e) => {
+          if (!window.confirm(form.dataset.confirm)) e.preventDefault();
+        });
+      });
     </script>
   </body>
 </html>

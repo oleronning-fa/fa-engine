@@ -78,6 +78,12 @@ export const roadmapItem = pgTable(
     targetWeek: text('target_week'),
     /** Set automatically when status becomes 'Delivered'. */
     completedAt: timestamp('completed_at', { withTimezone: true }),
+    /**
+     * Soft delete — set by the "Remove" action on an Epic card (OC, 21 Sep).
+     * Hides the item from default views; nothing is actually deleted, nothing
+     * cascades. Null = visible, as normal.
+     */
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
     /** Real parent relation. A Task usually points at an Epic; a sub-task at another Task. */
     parentId: uuid('parent_id').references((): AnyPgColumn => roadmapItem.id),
     /** Idea-bank attribution — follows the item all the way to delivery (idebank §3). */

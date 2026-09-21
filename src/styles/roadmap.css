@@ -368,3 +368,6 @@ dialog.modal::backdrop{background:rgba(1,23,45,.42)}
 .card-quick-status{border:1px solid var(--border-strong);background:var(--surface);border-radius:100px;
   padding:3px 10px;font:700 11px/16px "Inter Variable","Inter",sans-serif;color:var(--text-secondary);white-space:nowrap}
 .card-quick-status:hover{border-color:#19BE76;color:#0F7A3D;background:#E3F6EA}
+/* Destructive-action red — a UI-danger convention, not a status colour, so
+   this doesn't collide with plan §7's "never market red/green" rule. */
+.card-quick-remove:hover{border-color:#CA2B3D;color:#CA2B3D;background:#F6DDE0}

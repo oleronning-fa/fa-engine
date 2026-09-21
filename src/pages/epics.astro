@@ -47,13 +47,23 @@ const assigneesByItem = await getAssigneesByItemIds(epics.map((e) => e.id));
               ))}
             </div>
           </div>
-          {epic.status === 'Ikke påbegynt' && (
-            <form method="POST" action={`/api/roadmap-items/${epic.id}/status`}>
-              <input type="hidden" name="status" value="Påbegynt" />
+          <div style="display:flex;gap:6px;align-items:center">
+            {epic.status === 'Ikke påbegynt' && (
+              <form method="POST" action={`/api/roadmap-items/${epic.id}/status`}>
+                <input type="hidden" name="status" value="Påbegynt" />
+                <input type="hidden" name="redirectTo" value="/epics" />
+                <button class="card-quick-status" type="submit">▶ Start (Påbegynt)</button>
+              </form>
+            )}
+            <form
+              method="POST"
+              action={`/api/roadmap-items/${epic.id}/archive`}
+              data-confirm={`Remove "${epic.title}" from Epics? It won't be deleted — just hidden from this list.`}
+            >
               <input type="hidden" name="redirectTo" value="/epics" />
-              <button class="card-quick-status" type="submit">▶ Start (Påbegynt)</button>
+              <button class="card-quick-status card-quick-remove" type="submit">🗑 Remove</button>
             </form>
-          )}
+          </div>
         </div>
       );
     })}

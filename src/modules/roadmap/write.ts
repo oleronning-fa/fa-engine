@@ -216,3 +216,25 @@ export async function setItemStatus(id: string, status: string, actorEmail?: str
     });
   });
 }
+
+/**
+ * "Remove" on an Epic card (OC, 21 Sep) — hides it from /epics. A soft
+ * delete, not a real one: nothing is dropped, nothing cascades, and it can
+ * be brought back by clearing `archived_at` directly. Deliberately not a
+ * hard DELETE — that would cascade away the item's status log, sources,
+ * comments and assignee links, per the schema's onDelete: 'cascade'.
+ */
+export async function archiveRoadmapItem(id: string, actorEmail?: string | null): Promise<void> {
+  const actorId = await resolveActor(actorEmail);
+  await db.transaction(async (tx) => {
+    await tx.update(roadmapItem).set({ archivedAt: new Date(), updatedAt: new Date() }).where(eq(roadmapItem.id, id));
+    await tx.insert(event).values({
+      actorId,
+      actorKind: actorId ? 'user' : 'system',
+      action: 'roadmap_item.archived',
+      entityType: 'roadmap_item',
+      entityId: id,
+      payload: {},
+    });
+  });
+}
