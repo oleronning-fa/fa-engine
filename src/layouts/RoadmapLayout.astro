@@ -108,9 +108,15 @@ const epicOptions = await getEpicOptions();
           <button class="modal-close" type="button" data-close-dialog aria-label="Close">✕</button>
         </div>
         <div class="modal-body">
-          <div class="field">
-            <label for="epTitle">Title</label>
-            <input type="text" id="epTitle" name="title" placeholder="e.g. Redpill to AWS" required />
+          <div class="field-row">
+            <div class="field">
+              <label for="epTitle">Title</label>
+              <input type="text" id="epTitle" name="title" placeholder="e.g. Redpill to AWS" required />
+            </div>
+            <div class="field">
+              <label for="epEmoji">Emoji <span class="opt">(optional)</span></label>
+              <input type="text" id="epEmoji" name="emoji" placeholder="🚀" maxlength="4" />
+            </div>
           </div>
           <div class="field">
             <label for="epDesc">Description <span class="opt">(what, and why)</span></label>
@@ -121,6 +127,10 @@ const epicOptions = await getEpicOptions();
             <select id="epAssignees" name="assigneeIds" multiple>
               {people.map((p) => <option value={p.id}>{p.name}</option>)}
             </select>
+          </div>
+          <div class="field">
+            <label for="epNewPeople">New person? <span class="opt">(not in the list above — comma-separated, they'll be added)</span></label>
+            <input type="text" id="epNewPeople" name="newPeople" placeholder="e.g. Kari Nordmann" />
           </div>
           <div class="field">
             <label for="epTarget">Estimated delivery <span class="opt">(optional — most epics have none)</span></label>
@@ -151,9 +161,15 @@ const epicOptions = await getEpicOptions();
           <button class="modal-close" type="button" data-close-dialog aria-label="Close">✕</button>
         </div>
         <div class="modal-body">
-          <div class="field">
-            <label for="idTitle">Title</label>
-            <input type="text" id="idTitle" name="title" placeholder="e.g. Add maps to articles" required />
+          <div class="field-row">
+            <div class="field">
+              <label for="idTitle">Title</label>
+              <input type="text" id="idTitle" name="title" placeholder="e.g. Add maps to articles" required />
+            </div>
+            <div class="field">
+              <label for="idEmoji">Emoji <span class="opt">(optional)</span></label>
+              <input type="text" id="idEmoji" name="emoji" placeholder="💡" maxlength="4" />
+            </div>
           </div>
           <div class="field">
             <label for="idDesc">Description <span class="opt">(what, and why)</span></label>
@@ -164,6 +180,10 @@ const epicOptions = await getEpicOptions();
             <select id="idAssignees" name="assigneeIds" multiple>
               {people.map((p) => <option value={p.id}>{p.name}</option>)}
             </select>
+          </div>
+          <div class="field">
+            <label for="idNewPeople">New person? <span class="opt">(not in the list above — comma-separated, they'll be added)</span></label>
+            <input type="text" id="idNewPeople" name="newPeople" placeholder="e.g. Kari Nordmann" />
           </div>
           <div class="field">
             <label for="idTarget">Estimated delivery <span class="opt">(optional)</span></label>
@@ -263,6 +283,10 @@ const epicOptions = await getEpicOptions();
             <select id="tkAssignees" name="assigneeIds" multiple>
               {people.map((p) => <option value={p.id}>{p.name}</option>)}
             </select>
+          </div>
+          <div class="field">
+            <label for="tkNewPeople">New person? <span class="opt">(not in the list above — comma-separated, they'll be added)</span></label>
+            <input type="text" id="tkNewPeople" name="newPeople" placeholder="e.g. Kari Nordmann" />
           </div>
 
           <div class="section-divider"><span>Estimate &amp; tracking</span></div>

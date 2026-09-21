@@ -1,0 +1,95 @@
+---
+import RoadmapLayout from '../../layouts/RoadmapLayout.astro';
+import { getAllUsers, getAssigneeIdsForItem, getItemById } from '../../modules/roadmap/view/queries';
+import { AREAS, EPIC_STATUSES } from '../../core/codesets';
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/epics', 303);
+
+const epic = await getItemById(id);
+if (!epic || epic.type !== 'Epic') return Astro.redirect('/epics', 303);
+
+const people = await getAllUsers();
+const assigneeIds = new Set(await getAssigneeIdsForItem(id));
+---
+<RoadmapLayout title={epic.title} active="epics">
+  <a href="/epics" class="area-tag" style="display:inline-block;margin-bottom:14px">&larr; Back to Epics</a>
+
+  <form method="POST" action={`/api/roadmap-items/${epic.id}`} style="max-width:640px;display:flex;flex-direction:column;gap:16px">
+    <div class="field-row">
+      <div class="field">
+        <label for="title">Title</label>
+        <input type="text" id="title" name="title" value={epic.title} required />
+      </div>
+      <div class="field">
+        <label for="emoji">Emoji <span class="opt">(optional)</span></label>
+        <input type="text" id="emoji" name="emoji" value={epic.emoji ?? ''} maxlength="4" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="description">Description</label>
+      <textarea id="description" name="description">{epic.description ?? ''}</textarea>
+    </div>
+
+    <div class="section-divider"><span>Placement</span></div>
+    <div class="field">
+      <label for="area">Area <span class="opt">(optional — an epic can span several)</span></label>
+      <select id="area" name="area">
+        <option value="">Flere områder</option>
+        {AREAS.map((a) => <option value={a.id} selected={a.id === epic.area}>{a.label}</option>)}
+      </select>
+    </div>
+
+    <div class="section-divider"><span>Ownership &amp; status</span></div>
+    <div class="field-row">
+      <div class="field">
+        <label for="ownerId">Owner <span class="opt">(Hegnar Media)</span></label>
+        <select id="ownerId" name="ownerId">
+          <option value="">Not set</option>
+          {people.map((p) => <option value={p.id} selected={p.id === epic.ownerId}>{p.name}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="coordinatorId">Coordinator <span class="opt">(Profico)</span></label>
+        <select id="coordinatorId" name="coordinatorId">
+          <option value="">Not set</option>
+          {people.map((p) => <option value={p.id} selected={p.id === epic.coordinatorId}>{p.name}</option>)}
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="status">Status</label>
+      <select id="status" name="status">
+        {EPIC_STATUSES.map((s) => <option selected={s === epic.status}>{s}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label for="assigneeIds">Team</label>
+      <select id="assigneeIds" name="assigneeIds" multiple>
+        {people.map((p) => <option value={p.id} selected={assigneeIds.has(p.id)}>{p.name}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label for="newPeople">New person? <span class="opt">(not in the list above — comma-separated, they'll be added)</span></label>
+      <input type="text" id="newPeople" name="newPeople" placeholder="e.g. Kari Nordmann" />
+    </div>
+
+    <div class="section-divider"><span>Tracking</span></div>
+    <div class="field-row">
+      <div class="field">
+        <label for="targetDate">Estimated delivery <span class="opt">(optional)</span></label>
+        <input type="date" id="targetDate" name="targetDate" value={epic.targetDate ?? ''} />
+      </div>
+      <div class="field">
+        <label for="jiraKey">Jira key <span class="opt">(rare on an epic, optional)</span></label>
+        <input type="text" id="jiraKey" name="jiraKey" value={epic.jiraKey ?? ''} placeholder="e.g. FCK-3172" />
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:8px;border-top:1px solid var(--border)">
+      <a href="/epics" class="btn btn-ghost">Cancel</a>
+      <button class="btn btn-primary" type="submit">Save</button>
+    </div>
+  </form>
+</RoadmapLayout>

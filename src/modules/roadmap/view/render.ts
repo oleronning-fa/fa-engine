@@ -71,3 +71,8 @@ export function fmtDateShort(d: Date | string | null): string | null {
   if (Number.isNaN(date.getTime())) return null;
   return date.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' });
 }
+
+/** The Jira org used across every doc/import in this project (roadmap-krav §5 step 8). */
+export function jiraUrl(key: string): string {
+  return `https://startsiden.atlassian.net/browse/${encodeURIComponent(key)}`;
+}

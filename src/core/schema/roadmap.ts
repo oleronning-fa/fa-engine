@@ -37,6 +37,8 @@ export const roadmapItem = pgTable(
     /** 'Design' — a discipline, orthogonal to type. */
     discipline: text('discipline'),
     title: text('title').notNull(),
+    /** Optional single emoji shown on the card — Epic and Idea only, OC's ask. Not a real field in any spec doc. */
+    emoji: text('emoji'),
     /** Original sheet title, kept only on import for traceability. */
     rawTitle: text('raw_title'),
     /** Short markdown context — the row-under-the-title convention as a real field. */

@@ -13,6 +13,7 @@ export interface ItemRow {
   id: string;
   type: string;
   title: string;
+  emoji: string | null;
   area: string | null;
   status: string;
   jiraSubstatus: string | null;
@@ -21,8 +22,12 @@ export interface ItemRow {
   size: string | null;
   backlogged: boolean;
   parentId: string | null;
+  ownerId: string | null;
+  coordinatorId: string | null;
   ownerName: string | null;
   coordinatorName: string | null;
+  targetDate: string | null;
+  targetWeek: string | null;
   updatedAt: Date;
   completedAt: Date | null;
 }
@@ -31,6 +36,7 @@ const baseSelect = {
   id: roadmapItem.id,
   type: roadmapItem.type,
   title: roadmapItem.title,
+  emoji: roadmapItem.emoji,
   area: roadmapItem.area,
   status: roadmapItem.status,
   jiraSubstatus: roadmapItem.jiraSubstatus,
@@ -39,8 +45,12 @@ const baseSelect = {
   size: roadmapItem.size,
   backlogged: roadmapItem.backlogged,
   parentId: roadmapItem.parentId,
+  ownerId: roadmapItem.ownerId,
+  coordinatorId: roadmapItem.coordinatorId,
   ownerName: owner.name,
   coordinatorName: coordinator.name,
+  targetDate: roadmapItem.targetDate,
+  targetWeek: roadmapItem.targetWeek,
   updatedAt: roadmapItem.updatedAt,
   completedAt: roadmapItem.completedAt,
 };
@@ -188,6 +198,32 @@ export async function getEpicOptions(): Promise<PersonOption[]> {
     .from(roadmapItem)
     .where(eq(roadmapItem.type, 'Epic'))
     .orderBy(roadmapItem.title);
+}
+
+export interface FullItem extends ItemRow {
+  description: string | null;
+  notes: string | null;
+}
+
+/** One item, every field — for the edit page. Null if it doesn't exist. */
+export async function getItemById(id: string): Promise<FullItem | null> {
+  const [row] = await db
+    .select({ ...baseSelect, description: roadmapItem.description, notes: roadmapItem.notes })
+    .from(roadmapItem)
+    .leftJoin(owner, eq(roadmapItem.ownerId, owner.id))
+    .leftJoin(coordinator, eq(roadmapItem.coordinatorId, coordinator.id))
+    .where(eq(roadmapItem.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
+/** Assignee ids (not names) for one item — pre-selecting the right <option>s on the edit form. */
+export async function getAssigneeIdsForItem(id: string): Promise<string[]> {
+  const rows = await db
+    .select({ userId: roadmapItemAssignee.userId })
+    .from(roadmapItemAssignee)
+    .where(eq(roadmapItemAssignee.roadmapItemId, id));
+  return rows.map((r) => r.userId);
 }
 
 export async function getItemCount(): Promise<{ total: number; epics: number }> {

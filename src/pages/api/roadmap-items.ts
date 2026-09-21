@@ -5,11 +5,15 @@
  * re-POST on refresh).
  */
 import type { APIRoute } from 'astro';
-import { createRoadmapItem } from '../../modules/roadmap/write';
+import { createRoadmapItem, resolveOrCreatePeople } from '../../modules/roadmap/write';
 
 function str(v: FormDataEntryValue | null): string | null {
   const s = typeof v === 'string' ? v.trim() : '';
   return s || null;
+}
+
+function ids(form: FormData, field: string): string[] {
+  return form.getAll(field).filter((v): v is string => typeof v === 'string' && v !== '');
 }
 
 export const POST: APIRoute = async ({ request, redirect, locals }) => {
@@ -17,16 +21,22 @@ export const POST: APIRoute = async ({ request, redirect, locals }) => {
   const kind = str(form.get('kind'));
   const actorEmail = locals.user?.email ?? null;
 
+  // No JournalistBoost API lists every user (only /api/auth/check-session,
+  // which validates one session — AGENTS.md "Who's logged in"), so this is
+  // the stand-in: type a name that isn't in the list, they get created.
+  const newPeopleIds = await resolveOrCreatePeople(str(form.get('newPeople')));
+
   try {
     if (kind === 'epic') {
       await createRoadmapItem({
         type: 'Epic',
         title: form.get('title') as string,
+        emoji: str(form.get('emoji')),
         description: str(form.get('description')),
         targetDate: str(form.get('targetDate')),
         status: 'Ikke påbegynt',
         size: 'Ongoing',
-        assigneeIds: form.getAll('assigneeIds').filter((v): v is string => typeof v === 'string' && v !== ''),
+        assigneeIds: [...ids(form, 'assigneeIds'), ...newPeopleIds],
         actorEmail,
       });
       return redirect('/epics', 303);
@@ -36,10 +46,11 @@ export const POST: APIRoute = async ({ request, redirect, locals }) => {
       await createRoadmapItem({
         type: 'Task',
         title: form.get('title') as string,
+        emoji: str(form.get('emoji')),
         description: str(form.get('description')),
         targetDate: str(form.get('targetDate')),
         status: 'Idea',
-        assigneeIds: form.getAll('assigneeIds').filter((v): v is string => typeof v === 'string' && v !== ''),
+        assigneeIds: [...ids(form, 'assigneeIds'), ...newPeopleIds],
         actorEmail,
       });
       return redirect('/idea-bank', 303);
@@ -61,7 +72,7 @@ export const POST: APIRoute = async ({ request, redirect, locals }) => {
         size: str(form.get('size')),
         targetDate: str(form.get('targetDate')),
         jiraKey: str(form.get('jiraKey')),
-        assigneeIds: form.getAll('assigneeIds').filter((v): v is string => typeof v === 'string' && v !== ''),
+        assigneeIds: [...ids(form, 'assigneeIds'), ...newPeopleIds],
         actorEmail,
       });
       return redirect('/', 303);

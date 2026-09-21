@@ -196,7 +196,8 @@ a{color:var(--interactive)}
 .muted{color:var(--text-disabled)}
 .card-updated{font-size:11px;color:var(--text-disabled);margin-top:6px}
 .jira-badge{display:inline-flex;align-items:center;font:600 11px/16px "Inter Variable","Inter",sans-serif;color:var(--text-secondary);
-  background:var(--surface-sunken);border:1px solid var(--border);border-radius:4px;padding:0 5px;white-space:nowrap}
+  background:var(--surface-sunken);border:1px solid var(--border);border-radius:4px;padding:0 5px;white-space:nowrap;text-decoration:none}
+.jira-badge:hover{border-color:var(--interactive);color:var(--interactive)}
 .type-icon{width:16px;height:16px;border-radius:4px;display:grid;place-items:center;flex:none;font-size:9.5px;font-weight:800;color:#fff}
 .type-epic{background:var(--grey-900)}
 .type-task{background:var(--blue-500)}
@@ -247,6 +248,8 @@ a{color:var(--interactive)}
 .epic-card:hover{border-color:var(--interactive)}
 .epic-card-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
 .epic-card h4{font:700 15px/22px "Inter Variable","Inter",sans-serif}
+.epic-card-title-link{color:var(--text-primary);text-decoration:none}
+.epic-card-title-link:hover{color:var(--interactive);text-decoration:underline}
 .epic-card .desc{font-size:12.5px;color:var(--text-secondary);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .epic-progress{display:flex;flex-direction:column;gap:5px}
 .epic-progress-bar{height:6px;border-radius:100px;background:var(--surface-sunken);overflow:hidden}
@@ -350,7 +353,18 @@ dialog.modal::backdrop{background:rgba(1,23,45,.42)}
    nearest Task equivalent, named for what they actually mean on an Epic. */
 .st-epic-not-started{background:var(--surface-sunken);color:var(--text-secondary);border-color:var(--border)}
 .st-epic-not-started .dot-sm{background:var(--grey-400)}
-.st-epic-started{background:var(--blue-50);color:var(--blue-600)}
-.st-epic-started .dot-sm{background:var(--blue-500)}
+/* Green, on OC's explicit ask (21 Sep). Everywhere else on this board,
+   status/priority deliberately stay off the grey/blue/amber scale so they
+   never collide with green/red meaning market direction (plan §7) — this one
+   chip is a conscious, requested exception, not a drift from that rule. */
+.st-epic-started{background:#E3F6EA;color:#0F7A3D}
+.st-epic-started .dot-sm{background:#19BE76}
+:root[data-theme="dark"] .st-epic-started{background:rgba(25,190,118,.16);color:#4ADE94}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .st-epic-started{background:rgba(25,190,118,.16);color:#4ADE94}}
 .st-epic-archived{background:var(--grey-900);color:#fff}
 .st-epic-archived .dot-sm{background:#fff}
+
+/* Quick one-click status action on an epic card — no modal. */
+.card-quick-status{border:1px solid var(--border-strong);background:var(--surface);border-radius:100px;
+  padding:3px 10px;font:700 11px/16px "Inter Variable","Inter",sans-serif;color:var(--text-secondary);white-space:nowrap}
+.card-quick-status:hover{border-color:#19BE76;color:#0F7A3D;background:#E3F6EA}

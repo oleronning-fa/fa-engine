@@ -2,7 +2,7 @@
 import RoadmapLayout from '../layouts/RoadmapLayout.astro';
 import type { RoadmapItemType } from '../core/codesets';
 import { getAssigneesByItemIds, getBacklogItems } from '../modules/roadmap/view/queries';
-import { avatarColor, initials, priorityChipClass, typeIcon } from '../modules/roadmap/view/render';
+import { avatarColor, fmtDateShort, initials, jiraUrl, priorityChipClass, typeIcon } from '../modules/roadmap/view/render';
 
 const items = await getBacklogItems();
 const assigneesByItem = await getAssigneesByItemIds(items.map((i) => i.id));
@@ -19,13 +19,17 @@ const assigneesByItem = await getAssigneesByItemIds(items.map((i) => i.id));
       const icon = typeIcon(it.type as RoadmapItemType);
       const prClass = priorityChipClass(it.priority);
       const assignees = assigneesByItem.get(it.id) ?? [];
+      const target = fmtDateShort(it.targetDate) ?? it.targetWeek;
       return (
         <div class="board-card">
           <div class="board-card-top">
             <span class:list={['type-icon', icon.class]}>{icon.letter}</span>
-            {it.jiraKey && <span class="jira-badge">{it.jiraKey}</span>}
+            {it.jiraKey && (
+              <a class="jira-badge" href={jiraUrl(it.jiraKey)} target="_blank" rel="noopener noreferrer">{it.jiraKey}</a>
+            )}
           </div>
           <div class="board-card-title">{it.title}</div>
+          {target && <div class="card-updated" style="margin-top:0">🗓 {target}</div>}
           <div class="board-card-foot">
             {prClass ? <span class:list={['chip', prClass]}>{it.priority}</span> : <span />}
             <div class="assignees">

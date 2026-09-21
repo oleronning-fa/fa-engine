@@ -1,7 +1,7 @@
 ---
 import RoadmapLayout from '../layouts/RoadmapLayout.astro';
 import { getAssigneesByItemIds, getEpics } from '../modules/roadmap/view/queries';
-import { avatarColor, epicStatusChip, initials } from '../modules/roadmap/view/render';
+import { avatarColor, epicStatusChip, fmtDateShort, initials } from '../modules/roadmap/view/render';
 import { areaLabel, isAreaId } from '../core/codesets';
 
 const epics = await getEpics();
@@ -13,10 +13,16 @@ const assigneesByItem = await getAssigneesByItemIds(epics.map((e) => e.id));
       const status = epicStatusChip(epic.status);
       const pct = epic.totalChildren > 0 ? Math.round((epic.deliveredChildren / epic.totalChildren) * 100) : null;
       const assignees = assigneesByItem.get(epic.id) ?? [];
+      const target = fmtDateShort(epic.targetDate) ?? epic.targetWeek;
       return (
         <div class="epic-card">
           <div class="epic-card-head">
-            <h4>{epic.title}</h4>
+            <h4>
+              <a href={`/epics/${epic.id}`} class="epic-card-title-link">
+                {epic.emoji && <span aria-hidden="true">{epic.emoji} </span>}
+                {epic.title}
+              </a>
+            </h4>
             <span class:list={['chip', status.class]}>{status.label}</span>
           </div>
           {epic.description && <div class="desc">{epic.description}</div>}
@@ -33,6 +39,7 @@ const assigneesByItem = await getAssigneesByItemIds(epics.map((e) => e.id));
           )}
           <div class="epic-card-foot">
             <span class="area-tag">{epic.area && isAreaId(epic.area) ? areaLabel(epic.area) : 'Flere områder'}</span>
+            {target && <span class="area-tag" title="Estimated delivery">🗓 {target}</span>}
             <div class="assignees">
               {assignees.length === 0 && <span class="muted">—</span>}
               {assignees.map((name) => (
@@ -40,6 +47,13 @@ const assigneesByItem = await getAssigneesByItemIds(epics.map((e) => e.id));
               ))}
             </div>
           </div>
+          {epic.status === 'Ikke påbegynt' && (
+            <form method="POST" action={`/api/roadmap-items/${epic.id}/status`}>
+              <input type="hidden" name="status" value="Påbegynt" />
+              <input type="hidden" name="redirectTo" value="/epics" />
+              <button class="card-quick-status" type="submit">▶ Start (Påbegynt)</button>
+            </form>
+          )}
         </div>
       );
     })}
