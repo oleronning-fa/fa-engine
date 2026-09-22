@@ -8,12 +8,18 @@
  *
  * Two independent guards, not just the secret: (1) requires
  * `x-admin-secret` to match ADMIN_SYNC_SECRET, unset once done; (2) refuses
- * outright if roadmap_item already has rows, so a leaked secret can't be
- * used to duplicate or corrupt real data later.
+ * if any row in THIS payload's app_user or roadmap_item ids already exists
+ * in the target database, so a leaked secret — or an accidental second
+ * run — can't duplicate or corrupt data. This is deliberately an overlap
+ * check on the payload's own ids, not "the table must be empty": the
+ * target database may already hold real rows created directly through the
+ * live app (as production did — 3 epics from before this endpoint
+ * existed), and those must be left alone, not treated as a reason to
+ * refuse or as something safe to overwrite.
  */
 import type { APIRoute } from 'astro';
 import { ADMIN_SYNC_SECRET } from 'astro:env/server';
-import { sql } from 'drizzle-orm';
+import { inArray, sql } from 'drizzle-orm';
 import { db } from '../../../core/db';
 import {
   appUser,
@@ -48,11 +54,6 @@ export const POST: APIRoute = async ({ request }) => {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const [{ count }] = await db.execute<{ count: string }>(sql`SELECT count(*)::text FROM roadmap_item`);
-  if (Number(count) > 0) {
-    return new Response(`Refusing: roadmap_item already has ${count} row(s). This endpoint is for the first load only.`, { status: 409 });
-  }
-
   const dump = JSON.parse(await request.text(), isoDateReviver) as {
     appUser: (typeof appUser.$inferInsert)[];
     personAlias: (typeof personAlias.$inferInsert)[];
@@ -65,6 +66,18 @@ export const POST: APIRoute = async ({ request }) => {
     proposal: (typeof proposal.$inferInsert)[];
     importNote: (typeof importNote.$inferInsert)[];
   };
+
+  const userIds = dump.appUser.map((u) => u.id).filter((id): id is string => !!id);
+  const itemIds = dump.roadmapItem.map((r) => r.id).filter((id): id is string => !!id);
+  const [existingUser] = userIds.length
+    ? await db.select({ id: appUser.id }).from(appUser).where(inArray(appUser.id, userIds)).limit(1)
+    : [];
+  const [existingItem] = itemIds.length
+    ? await db.select({ id: roadmapItem.id }).from(roadmapItem).where(inArray(roadmapItem.id, itemIds)).limit(1)
+    : [];
+  if (existingUser || existingItem) {
+    return new Response('Refusing: this payload has already been restored into this database (matching id found).', { status: 409 });
+  }
 
   try {
     await db.transaction(async (tx) => {
