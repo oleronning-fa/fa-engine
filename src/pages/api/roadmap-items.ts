@@ -5,7 +5,7 @@
  * re-POST on refresh).
  */
 import type { APIRoute } from 'astro';
-import { createRoadmapItem, resolveOrCreatePeople } from '../../modules/roadmap/write';
+import { createRoadmapItem, resolveOrCreateOwner, resolveOrCreatePeople } from '../../modules/roadmap/write';
 
 function str(v: FormDataEntryValue | null): string | null {
   const s = typeof v === 'string' ? v.trim() : '';
@@ -28,6 +28,7 @@ export const POST: APIRoute = async ({ request, redirect, locals }) => {
 
   try {
     if (kind === 'epic') {
+      const ownerId = await resolveOrCreateOwner(str(form.get('ownerName')));
       await createRoadmapItem({
         type: 'Epic',
         title: form.get('title') as string,
@@ -36,6 +37,7 @@ export const POST: APIRoute = async ({ request, redirect, locals }) => {
         targetDate: str(form.get('targetDate')),
         status: 'Ikke påbegynt',
         size: 'Ongoing',
+        ownerId,
         assigneeIds: [...ids(form, 'assigneeIds'), ...newPeopleIds],
         actorEmail,
       });

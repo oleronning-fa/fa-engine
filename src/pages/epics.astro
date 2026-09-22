@@ -1,79 +1,225 @@
 ---
 import RoadmapLayout from '../layouts/RoadmapLayout.astro';
-import { getAssigneesByItemIds, getEpics, getLatestCommentByItemIds } from '../modules/roadmap/view/queries';
+import { getAssigneesByItemIds, getEpics, getLatestCommentByItemIds, type EpicRow } from '../modules/roadmap/view/queries';
 import { avatarColor, epicStatusChip, fmtDateShort, initials } from '../modules/roadmap/view/render';
-import { areaLabel, isAreaId } from '../core/codesets';
+import { areaLabel, EPIC_STATUSES, isAreaId } from '../core/codesets';
+
+const VIEWS = [
+  { key: 'cards', label: 'Cards' },
+  { key: 'list', label: 'List' },
+  { key: 'board', label: 'Board' },
+] as const;
+type ViewKey = (typeof VIEWS)[number]['key'];
+
+const rawView = Astro.url.searchParams.get('view');
+const view: ViewKey = VIEWS.some((v) => v.key === rawView) ? (rawView as ViewKey) : 'cards';
+// Quick actions (Start / Remove) redirect back here — keeps the chosen view
+// across the round trip instead of bouncing back to the Cards default.
+const redirectTo = `/epics?view=${view}`;
 
 const epics = await getEpics();
 const assigneesByItem = await getAssigneesByItemIds(epics.map((e) => e.id));
 const latestCommentByItem = await getLatestCommentByItemIds(epics.map((e) => e.id));
+
+function progressPct(epic: EpicRow): number | null {
+  return epic.totalChildren > 0 ? Math.round((epic.deliveredChildren / epic.totalChildren) * 100) : null;
+}
 ---
 <RoadmapLayout title="Epics" active="epics">
-  <div class="epics-grid">
-    {epics.map((epic) => {
-      const status = epicStatusChip(epic.status);
-      const pct = epic.totalChildren > 0 ? Math.round((epic.deliveredChildren / epic.totalChildren) * 100) : null;
-      const assignees = assigneesByItem.get(epic.id) ?? [];
-      const target = fmtDateShort(epic.targetDate) ?? epic.targetWeek;
-      const latestComment = latestCommentByItem.get(epic.id);
-      return (
-        <div class="epic-card">
-          <div class="epic-card-head">
-            <h4>
-              <a href={`/epics/${epic.id}`} class="epic-card-title-link">
-                {epic.emoji && <span aria-hidden="true">{epic.emoji} </span>}
-                {epic.title}
-              </a>
-            </h4>
-            <span class:list={['chip', status.class]}>{status.label}</span>
-          </div>
-          {epic.description && <div class="desc">{epic.description}</div>}
-          {pct !== null ? (
-            <div class="epic-progress">
-              <div class="epic-progress-bar"><div class="epic-progress-fill" style={`width:${pct}%`} /></div>
-              <div class="epic-progress-label">
-                <span>{epic.deliveredChildren} of {epic.totalChildren} delivered</span>
-                <span>{pct}%</span>
+  <div class="toolbar" slot="toolbar">
+    <div class="view-switch">
+      {VIEWS.map((v) => (
+        <a href={`/epics?view=${v.key}`} class:list={[{ active: view === v.key }]}>{v.label}</a>
+      ))}
+    </div>
+    <div class="toolbar-spacer"></div>
+    <span class="result-count">{epics.length} epics</span>
+  </div>
+
+  {view === 'cards' && (
+    <div class="epics-grid">
+      {epics.map((epic) => {
+        const status = epicStatusChip(epic.status);
+        const pct = progressPct(epic);
+        const assignees = assigneesByItem.get(epic.id) ?? [];
+        const target = fmtDateShort(epic.targetDate) ?? epic.targetWeek;
+        const latestComment = latestCommentByItem.get(epic.id);
+        return (
+          <div class="epic-card">
+            <div class="epic-card-head">
+              <h4>
+                <a href={`/epics/${epic.id}`} class="epic-card-title-link">
+                  {epic.emoji && <span aria-hidden="true">{epic.emoji} </span>}
+                  {epic.title}
+                </a>
+              </h4>
+              <span class:list={['chip', status.class]}>{status.label}</span>
+            </div>
+            {epic.description && <div class="desc">{epic.description}</div>}
+            {pct !== null ? (
+              <div class="epic-progress">
+                <div class="epic-progress-bar"><div class="epic-progress-fill" style={`width:${pct}%`} /></div>
+                <div class="epic-progress-label">
+                  <span>{epic.deliveredChildren} of {epic.totalChildren} delivered</span>
+                  <span>{pct}%</span>
+                </div>
+              </div>
+            ) : (
+              <div class="muted" style="font-size:11.5px">No linked tasks yet</div>
+            )}
+            <div class="epic-card-foot">
+              <span class="area-tag">{epic.area && isAreaId(epic.area) ? areaLabel(epic.area) : 'Flere områder'}</span>
+              {epic.ownerName && <span class="area-tag" title="Owner">👤 {epic.ownerName}</span>}
+              {target && <span class="area-tag" title="Estimated delivery">🗓 {target}</span>}
+              <div class="assignees">
+                {assignees.length === 0 && <span class="muted">—</span>}
+                {assignees.map((name) => (
+                  <span class="dot" style={`background:${avatarColor(name)}`} title={name}>{initials(name)}</span>
+                ))}
               </div>
             </div>
-          ) : (
-            <div class="muted" style="font-size:11.5px">No linked tasks yet</div>
-          )}
-          <div class="epic-card-foot">
-            <span class="area-tag">{epic.area && isAreaId(epic.area) ? areaLabel(epic.area) : 'Flere områder'}</span>
-            {target && <span class="area-tag" title="Estimated delivery">🗓 {target}</span>}
-            <div class="assignees">
-              {assignees.length === 0 && <span class="muted">—</span>}
-              {assignees.map((name) => (
-                <span class="dot" style={`background:${avatarColor(name)}`} title={name}>{initials(name)}</span>
-              ))}
-            </div>
-          </div>
-          {latestComment && (
-            <div class="latest-comment">
-              <b>{latestComment.authorName}:</b>
-              <span>{latestComment.body}</span>
-            </div>
-          )}
-          <div style="display:flex;gap:6px;align-items:center">
-            {epic.status === 'Ikke påbegynt' && (
-              <form method="POST" action={`/api/roadmap-items/${epic.id}/status`}>
-                <input type="hidden" name="status" value="Påbegynt" />
-                <input type="hidden" name="redirectTo" value="/epics" />
-                <button class="card-quick-status" type="submit">▶ Start (Påbegynt)</button>
-              </form>
+            {latestComment && (
+              <div class="latest-comment">
+                <b>{latestComment.authorName}:</b>
+                <span>{latestComment.body}</span>
+              </div>
             )}
-            <form
-              method="POST"
-              action={`/api/roadmap-items/${epic.id}/archive`}
-              data-confirm={`Remove "${epic.title}" from Epics? It won't be deleted — just hidden from this list.`}
-            >
-              <input type="hidden" name="redirectTo" value="/epics" />
-              <button class="card-quick-status card-quick-remove" type="submit">🗑 Remove</button>
-            </form>
+            <div style="display:flex;gap:6px;align-items:center">
+              {epic.status === 'Ikke påbegynt' && (
+                <form method="POST" action={`/api/roadmap-items/${epic.id}/status`}>
+                  <input type="hidden" name="status" value="Påbegynt" />
+                  <input type="hidden" name="redirectTo" value={redirectTo} />
+                  <button class="card-quick-status" type="submit">▶ Start (Påbegynt)</button>
+                </form>
+              )}
+              <form
+                method="POST"
+                action={`/api/roadmap-items/${epic.id}/archive`}
+                data-confirm={`Remove "${epic.title}" from Epics? It won't be deleted — just hidden from this list.`}
+              >
+                <input type="hidden" name="redirectTo" value={redirectTo} />
+                <button class="card-quick-status card-quick-remove" type="submit">🗑 Remove</button>
+              </form>
+            </div>
           </div>
-        </div>
-      );
-    })}
-  </div>
+        );
+      })}
+    </div>
+  )}
+
+  {view === 'list' && (
+    <div class="epics-list">
+      {epics.map((epic) => {
+        const status = epicStatusChip(epic.status);
+        const pct = progressPct(epic);
+        const assignees = assigneesByItem.get(epic.id) ?? [];
+        const target = fmtDateShort(epic.targetDate) ?? epic.targetWeek;
+        return (
+          <div class="epic-list-row">
+            <div class="epic-list-title">
+              <a href={`/epics/${epic.id}`}>{epic.emoji && `${epic.emoji} `}{epic.title}</a>
+            </div>
+            <span class:list={['chip', status.class]}>{status.label}</span>
+            <span class="epic-list-owner">{epic.ownerName ?? '—'}</span>
+            <span class="muted" style="font-size:12px">{target ?? '—'}</span>
+            {pct !== null ? (
+              <div class="epic-list-progress">
+                <span class="bar"><span style={`width:${pct}%`} /></span>
+                <span>{pct}%</span>
+              </div>
+            ) : (
+              <span class="muted" style="font-size:11px">No tasks</span>
+            )}
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="assignees">
+                {assignees.length === 0 && <span class="muted">—</span>}
+                {assignees.map((name) => (
+                  <span class="dot" style={`background:${avatarColor(name)}`} title={name}>{initials(name)}</span>
+                ))}
+              </div>
+              {epic.status === 'Ikke påbegynt' && (
+                <form method="POST" action={`/api/roadmap-items/${epic.id}/status`}>
+                  <input type="hidden" name="status" value="Påbegynt" />
+                  <input type="hidden" name="redirectTo" value={redirectTo} />
+                  <button class="card-quick-status btn-sm" type="submit">▶ Start</button>
+                </form>
+              )}
+              <form
+                method="POST"
+                action={`/api/roadmap-items/${epic.id}/archive`}
+                data-confirm={`Remove "${epic.title}" from Epics? It won't be deleted — just hidden from this list.`}
+              >
+                <input type="hidden" name="redirectTo" value={redirectTo} />
+                <button class="card-quick-status card-quick-remove btn-sm" type="submit">🗑</button>
+              </form>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  )}
+
+  {view === 'board' && (
+    <div class="board-scroll">
+      <div class="board">
+        {EPIC_STATUSES.map((statusValue) => {
+          const inCol = epics.filter((e) => e.status === statusValue);
+          const status = epicStatusChip(statusValue);
+          return (
+            <div class="board-col" data-col={status.class}>
+              <div class="board-col-head">
+                <span>{status.label}</span>
+                <span class="count">{inCol.length}</span>
+              </div>
+              <div class="board-col-body">
+                {inCol.length === 0 && <div class="board-col-empty">Nothing here</div>}
+                {inCol.map((epic) => {
+                  const pct = progressPct(epic);
+                  const assignees = assigneesByItem.get(epic.id) ?? [];
+                  const target = fmtDateShort(epic.targetDate) ?? epic.targetWeek;
+                  return (
+                    <div class="epic-board-card">
+                      <div class="epic-board-card-title">
+                        <a href={`/epics/${epic.id}`} class="epic-card-title-link">{epic.emoji && `${epic.emoji} `}{epic.title}</a>
+                      </div>
+                      {epic.ownerName && <span class="area-tag" title="Owner">👤 {epic.ownerName}</span>}
+                      {target && <div class="card-updated">🗓 {target}</div>}
+                      <div class="board-card-foot">
+                        {pct !== null ? (
+                          <span class="muted" style="font-size:11px">{epic.deliveredChildren}/{epic.totalChildren} · {pct}%</span>
+                        ) : <span />}
+                        <div class="assignees">
+                          {assignees.length === 0 && <span class="muted">—</span>}
+                          {assignees.map((name) => (
+                            <span class="dot" style={`background:${avatarColor(name)}`} title={name}>{initials(name)}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div style="display:flex;gap:6px">
+                        {epic.status === 'Ikke påbegynt' && (
+                          <form method="POST" action={`/api/roadmap-items/${epic.id}/status`}>
+                            <input type="hidden" name="status" value="Påbegynt" />
+                            <input type="hidden" name="redirectTo" value={redirectTo} />
+                            <button class="card-quick-status btn-sm" type="submit">▶ Start</button>
+                          </form>
+                        )}
+                        <form
+                          method="POST"
+                          action={`/api/roadmap-items/${epic.id}/archive`}
+                          data-confirm={`Remove "${epic.title}" from Epics? It won't be deleted — just hidden from this list.`}
+                        >
+                          <input type="hidden" name="redirectTo" value={redirectTo} />
+                          <button class="card-quick-status card-quick-remove btn-sm" type="submit">🗑</button>
+                        </form>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  )}
 </RoadmapLayout>

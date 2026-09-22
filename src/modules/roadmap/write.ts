@@ -40,29 +40,32 @@ async function resolveActor(email: string | null | undefined): Promise<string | 
 /**
  * There's no JournalistBoost API for listing every user (only
  * /api/auth/check-session, which validates one session — see AGENTS.md
- * "Who's logged in"), so the assignee picker can't be a live JB directory.
- * This is the practical stand-in: free-text names (comma-separated), matched
- * case-insensitively against existing `app_user` rows, and created if new.
+ * "Who's logged in"), so pickers like assignees and Epic owner can't be a
+ * live JB directory. This is the practical stand-in: a free-text name,
+ * matched case-insensitively against existing `app_user` rows, and created
+ * if new.
  */
+async function resolveOrCreatePersonId(name: string): Promise<string> {
+  const [existing] = await db.select({ id: appUser.id }).from(appUser).where(eq(appUser.name, name)).limit(1);
+  if (existing) return existing.id;
+  const [created] = await db.insert(appUser).values({ name }).returning({ id: appUser.id });
+  return created.id;
+}
+
+/** Comma-separated names (assignees' "New person?" field) — one id per name. */
 export async function resolveOrCreatePeople(freeText: string | null | undefined): Promise<string[]> {
   if (!freeText?.trim()) return [];
   const names = freeText
     .split(',')
     .map((n) => n.trim())
     .filter(Boolean);
-  if (names.length === 0) return [];
+  return Promise.all(names.map(resolveOrCreatePersonId));
+}
 
-  const ids: string[] = [];
-  for (const name of names) {
-    const [existing] = await db.select({ id: appUser.id }).from(appUser).where(eq(appUser.name, name)).limit(1);
-    if (existing) {
-      ids.push(existing.id);
-    } else {
-      const [created] = await db.insert(appUser).values({ name }).returning({ id: appUser.id });
-      ids.push(created.id);
-    }
-  }
-  return ids;
+/** One name (the Epic "Owner" field) — null when left blank. */
+export async function resolveOrCreateOwner(name: string | null | undefined): Promise<string | null> {
+  const trimmed = name?.trim();
+  return trimmed ? resolveOrCreatePersonId(trimmed) : null;
 }
 
 export async function createRoadmapItem(input: CreateItemInput): Promise<string> {

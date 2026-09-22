@@ -1,6 +1,6 @@
 /** Full edit — the Epic detail page's save form. Plain HTML form POST (browsers don't send PATCH from a <form>). */
 import type { APIRoute } from 'astro';
-import { resolveOrCreatePeople, updateRoadmapItem } from '../../../modules/roadmap/write';
+import { resolveOrCreateOwner, resolveOrCreatePeople, updateRoadmapItem } from '../../../modules/roadmap/write';
 
 function str(v: FormDataEntryValue | null): string | null {
   const s = typeof v === 'string' ? v.trim() : '';
@@ -17,6 +17,7 @@ export const POST: APIRoute = async ({ params, request, redirect, locals }) => {
     ...form.getAll('assigneeIds').filter((v): v is string => typeof v === 'string' && v !== ''),
     ...newPeopleIds,
   ];
+  const ownerId = await resolveOrCreateOwner(str(form.get('ownerName')));
 
   try {
     await updateRoadmapItem({
@@ -26,7 +27,7 @@ export const POST: APIRoute = async ({ params, request, redirect, locals }) => {
       description: str(form.get('description')),
       notes: str(form.get('notes')),
       area: str(form.get('area')),
-      ownerId: str(form.get('ownerId')),
+      ownerId,
       coordinatorId: str(form.get('coordinatorId')),
       status: (str(form.get('status')) as string) ?? 'Ikke påbegynt',
       priority: str(form.get('priority')),

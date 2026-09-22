@@ -132,12 +132,18 @@ const epicOptions = await getEpicOptions();
             <label for="epNewPeople">New person? <span class="opt">(not in the list above — comma-separated, they'll be added)</span></label>
             <input type="text" id="epNewPeople" name="newPeople" placeholder="e.g. Kari Nordmann" />
           </div>
-          <div class="field">
-            <label for="epTarget">Estimated delivery <span class="opt">(optional — most epics have none)</span></label>
-            <input type="date" id="epTarget" name="targetDate" />
+          <div class="field-row">
+            <div class="field">
+              <label for="epOwner">Owner <span class="opt">(optional — type a name)</span></label>
+              <input type="text" id="epOwner" name="ownerName" placeholder="e.g. Ole Christian" />
+            </div>
+            <div class="field">
+              <label for="epTarget">Estimated delivery <span class="opt">(optional — most epics have none)</span></label>
+              <input type="date" id="epTarget" name="targetDate" />
+            </div>
           </div>
           <div class="field">
-            <div class="help">That's it — owner, area, status, comments and sources can be filled in later. New epics start as <b>Ikke påbegynt</b>.</div>
+            <div class="help">That's it — area, status, comments and sources can be filled in later. New epics start as <b>Ikke påbegynt</b>.</div>
           </div>
         </div>
         <div class="modal-foot">

@@ -46,11 +46,8 @@ const comments = await getCommentsForItem(id);
     <div class="section-divider"><span>Ownership &amp; status</span></div>
     <div class="field-row">
       <div class="field">
-        <label for="ownerId">Owner <span class="opt">(Hegnar Media)</span></label>
-        <select id="ownerId" name="ownerId">
-          <option value="">Not set</option>
-          {people.map((p) => <option value={p.id} selected={p.id === epic.ownerId}>{p.name}</option>)}
-        </select>
+        <label for="ownerName">Owner <span class="opt">(type a name)</span></label>
+        <input type="text" id="ownerName" name="ownerName" value={epic.ownerName ?? ''} placeholder="e.g. Ole Christian" />
       </div>
       <div class="field">
         <label for="coordinatorId">Coordinator <span class="opt">(Profico)</span></label>

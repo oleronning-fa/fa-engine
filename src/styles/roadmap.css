@@ -261,6 +261,34 @@ a{color:var(--interactive)}
 .epic-card .latest-comment b{color:var(--text-primary);flex:none}
 .epic-card .latest-comment span{overflow:hidden;text-overflow:ellipsis}
 
+/* ---------- Epics — view switcher ---------- */
+.view-switch{display:inline-flex;gap:2px;background:var(--surface-sunken);border:1px solid var(--border);border-radius:8px;padding:2px}
+.view-switch a{display:inline-flex;align-items:center;height:26px;padding:0 12px;border-radius:6px;
+  font:600 12px/1 "Inter Variable","Inter",sans-serif;color:var(--text-secondary);text-decoration:none}
+.view-switch a:hover{color:var(--text-primary)}
+.view-switch a.active{background:var(--surface);color:var(--text-primary);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+
+/* ---------- Epics — list view ---------- */
+.epics-list{display:flex;flex-direction:column;gap:1px;background:var(--border);border:1px solid var(--border);
+  border-radius:8px;overflow:hidden;margin-top:4px}
+.epic-list-row{display:grid;grid-template-columns:1fr 150px 130px 100px 130px auto;gap:14px;align-items:center;
+  background:var(--surface);padding:10px 14px}
+.epic-list-row:hover{background:var(--surface-sunken)}
+.epic-list-title{min-width:0}
+.epic-list-title a{color:var(--text-primary);text-decoration:none;font:600 13px/18px "Inter Variable","Inter",sans-serif;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.epic-list-title a:hover{color:var(--interactive);text-decoration:underline}
+.epic-list-owner{font-size:12px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.epic-list-progress{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-secondary);font-weight:600}
+.epic-list-progress .bar{width:52px;height:5px;border-radius:100px;background:var(--surface-sunken);overflow:hidden;flex:none}
+.epic-list-progress .bar > span{display:block;height:100%;background:var(--interactive)}
+
+/* ---------- Epics — board view (reuses .board* from All items) ---------- */
+.epic-board-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;
+  display:flex;flex-direction:column;gap:6px;text-decoration:none;color:inherit}
+.epic-board-card:hover{border-color:var(--interactive)}
+.epic-board-card-title{font-size:12.5px;font-weight:600;color:var(--text-primary);line-height:1.4}
+
 /* ---------- For you / Log — shared section-group heading ---------- */
 .list-group{margin-bottom:22px}
 .list-group h3{font:700 13px/20px "Inter Variable","Inter",sans-serif;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.03em;
