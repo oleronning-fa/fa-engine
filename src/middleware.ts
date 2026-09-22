@@ -41,6 +41,16 @@ const requireLogin = defineMiddleware(async (context, next) => {
     pathname === '/favicon.svg';
   if (isPublicAsset) return next();
 
+  // One-time admin restore (src/pages/api/admin/restore.ts) authenticates
+  // itself with a secret header, not a JB session — there is no session to
+  // hold yet when this runs, before any real data exists. Skipping the JB
+  // check here only decides THIS path doesn't need one; the route still does
+  // its own secret comparison and its own "table already has rows" guard, so
+  // nothing here weakens or duplicates that check.
+  if (pathname === '/api/admin/restore' && context.request.headers.has('x-admin-secret')) {
+    return next();
+  }
+
   const user = await getJbUser(context.request.headers.get('cookie'));
 
   if (!user) {
