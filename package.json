@@ -14,7 +14,8 @@
     "db:studio": "drizzle-kit studio",
     "db:health": "tsx scripts/db-health.ts",
     "import:roadmap": "tsx scripts/import-roadmap.ts",
-    "sync:jira": "tsx scripts/sync-jira.ts"
+    "sync:jira": "tsx scripts/sync-jira.ts",
+    "export:data": "tsx scripts/export-data.ts"
   },
   "dependencies": {
     "@astrojs/node": "^11.0.3",

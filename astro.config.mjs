@@ -115,6 +115,17 @@ export default defineConfig({
         access: 'secret',
         default: 600_000,
       }),
+
+      // --- One-time admin data sync — src/pages/api/admin/restore.ts ---
+      // Guards the restore endpoint. Unset in Coolify once the one sync it
+      // was for is done; the endpoint also refuses to run a second time
+      // against a database that already has data, so this isn't the only
+      // guard, just the first one.
+      ADMIN_SYNC_SECRET: envField.string({
+        context: 'server',
+        access: 'secret',
+        optional: true,
+      }),
     },
   },
 
