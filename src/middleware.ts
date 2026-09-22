@@ -1,6 +1,9 @@
 import { defineMiddleware, sequence } from 'astro:middleware';
 import { authMode, getJbUser, isAuthDisabled, jbLoginUrl } from './lib/auth';
 import { isZephrSimulationEnabled, simulateZephr } from './lib/zephr';
+// Side-effect import — starts the background Jira sync interval exactly once
+// per server process. See core/jira-scheduler.ts for why it lives here.
+import './core/jira-scheduler';
 
 /**
  * Login, for JB apps only.

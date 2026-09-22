@@ -1,7 +1,8 @@
 ---
 import RoadmapLayout from '../../layouts/RoadmapLayout.astro';
-import { getAllUsers, getAssigneeIdsForItem, getItemById } from '../../modules/roadmap/view/queries';
+import { getAllUsers, getAssigneeIdsForItem, getCommentsForItem, getItemById } from '../../modules/roadmap/view/queries';
 import { AREAS, EPIC_STATUSES } from '../../core/codesets';
+import { fmtDateShort } from '../../modules/roadmap/view/render';
 
 const { id } = Astro.params;
 if (!id) return Astro.redirect('/epics', 303);
@@ -11,6 +12,7 @@ if (!epic || epic.type !== 'Epic') return Astro.redirect('/epics', 303);
 
 const people = await getAllUsers();
 const assigneeIds = new Set(await getAssigneeIdsForItem(id));
+const comments = await getCommentsForItem(id);
 ---
 <RoadmapLayout title={epic.title} active="epics">
   <a href="/epics" class="area-tag" style="display:inline-block;margin-bottom:14px">&larr; Back to Epics</a>
@@ -92,4 +94,36 @@ const assigneeIds = new Set(await getAssigneeIdsForItem(id));
       <button class="btn btn-primary" type="submit">Save</button>
     </div>
   </form>
+
+  <div class="section-divider" style="max-width:640px;margin-top:28px"><span>Comments</span></div>
+  <div style="max-width:640px">
+    <form method="POST" action={`/api/roadmap-items/${epic.id}/comments`} style="display:flex;flex-direction:column;gap:8px;margin:12px 0 16px">
+      <div class="field-row">
+        <div class="field">
+          <label for="authorId">Posting as</label>
+          <select id="authorId" name="authorId" required>
+            <option value="">Choose who you are…</option>
+            {people.map((p) => <option value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <textarea name="body" placeholder="A short progress note…" required></textarea>
+      </div>
+      <div style="display:flex;justify-content:flex-end">
+        <button class="btn btn-primary btn-sm" type="submit">Add comment</button>
+      </div>
+    </form>
+
+    {comments.length === 0 && <p class="muted" style="font-size:12.5px">No comments yet.</p>}
+    {comments.map((c) => (
+      <div class="comment-item">
+        <div class="who-when">
+          <b>{c.authorName}</b>
+          <span>{fmtDateShort(c.createdAt)}</span>
+        </div>
+        <div class="comment-text">{c.body}</div>
+      </div>
+    ))}
+  </div>
 </RoadmapLayout>

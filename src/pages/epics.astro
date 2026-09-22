@@ -1,11 +1,12 @@
 ---
 import RoadmapLayout from '../layouts/RoadmapLayout.astro';
-import { getAssigneesByItemIds, getEpics } from '../modules/roadmap/view/queries';
+import { getAssigneesByItemIds, getEpics, getLatestCommentByItemIds } from '../modules/roadmap/view/queries';
 import { avatarColor, epicStatusChip, fmtDateShort, initials } from '../modules/roadmap/view/render';
 import { areaLabel, isAreaId } from '../core/codesets';
 
 const epics = await getEpics();
 const assigneesByItem = await getAssigneesByItemIds(epics.map((e) => e.id));
+const latestCommentByItem = await getLatestCommentByItemIds(epics.map((e) => e.id));
 ---
 <RoadmapLayout title="Epics" active="epics">
   <div class="epics-grid">
@@ -14,6 +15,7 @@ const assigneesByItem = await getAssigneesByItemIds(epics.map((e) => e.id));
       const pct = epic.totalChildren > 0 ? Math.round((epic.deliveredChildren / epic.totalChildren) * 100) : null;
       const assignees = assigneesByItem.get(epic.id) ?? [];
       const target = fmtDateShort(epic.targetDate) ?? epic.targetWeek;
+      const latestComment = latestCommentByItem.get(epic.id);
       return (
         <div class="epic-card">
           <div class="epic-card-head">
@@ -47,6 +49,12 @@ const assigneesByItem = await getAssigneesByItemIds(epics.map((e) => e.id));
               ))}
             </div>
           </div>
+          {latestComment && (
+            <div class="latest-comment">
+              <b>{latestComment.authorName}:</b>
+              <span>{latestComment.body}</span>
+            </div>
+          )}
           <div style="display:flex;gap:6px;align-items:center">
             {epic.status === 'Ikke påbegynt' && (
               <form method="POST" action={`/api/roadmap-items/${epic.id}/status`}>

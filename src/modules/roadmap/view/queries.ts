@@ -4,7 +4,7 @@
  */
 import { aliasedTable, and, desc, eq, inArray, isNull, ne, sql, type SQL } from 'drizzle-orm';
 import { db } from '../../../core/db';
-import { appUser, roadmapItem, roadmapItemAssignee, roadmapStatusLog } from '../../../core/schema';
+import { appUser, roadmapComment, roadmapItem, roadmapItemAssignee, roadmapStatusLog } from '../../../core/schema';
 
 const owner = aliasedTable(appUser, 'owner');
 const coordinator = aliasedTable(appUser, 'coordinator');
@@ -234,4 +234,44 @@ export async function getItemCount(): Promise<{ total: number; epics: number }> 
     })
     .from(roadmapItem);
   return { total: Number(row.total), epics: Number(row.epics) };
+}
+
+export interface CommentRow {
+  id: string;
+  body: string;
+  authorName: string;
+  createdAt: Date;
+}
+
+/** Every comment on one Epic, newest first (feltkatalog §2). */
+export async function getCommentsForItem(itemId: string): Promise<CommentRow[]> {
+  return db
+    .select({ id: roadmapComment.id, body: roadmapComment.body, authorName: appUser.name, createdAt: roadmapComment.createdAt })
+    .from(roadmapComment)
+    .innerJoin(appUser, eq(roadmapComment.authorId, appUser.id))
+    .where(eq(roadmapComment.roadmapItemId, itemId))
+    .orderBy(desc(roadmapComment.createdAt));
+}
+
+/** The single latest comment per item, for the "latest comment" preview on the Epics grid — one query, not N. */
+export async function getLatestCommentByItemIds(ids: string[]): Promise<Map<string, CommentRow>> {
+  if (ids.length === 0) return new Map();
+  const rows = await db
+    .select({
+      itemId: roadmapComment.roadmapItemId,
+      id: roadmapComment.id,
+      body: roadmapComment.body,
+      authorName: appUser.name,
+      createdAt: roadmapComment.createdAt,
+    })
+    .from(roadmapComment)
+    .innerJoin(appUser, eq(roadmapComment.authorId, appUser.id))
+    .where(inArray(roadmapComment.roadmapItemId, ids))
+    .orderBy(desc(roadmapComment.createdAt));
+
+  const map = new Map<string, CommentRow>();
+  for (const r of rows) {
+    if (!map.has(r.itemId)) map.set(r.itemId, r); // first hit per item = newest, thanks to the orderBy
+  }
+  return map;
 }

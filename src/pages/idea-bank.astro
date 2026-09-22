@@ -31,6 +31,11 @@ const grouped = GROUPS.map((status) => ({ status, items: items.filter((i) => i.s
                   {it.ownerName && <span class="muted" style="font-size:11px">{it.ownerName}</span>}
                 </span>
               </div>
+              <form method="POST" action={`/api/roadmap-items/${it.id}/attach-jira`} class="attach-jira-form">
+                <input type="hidden" name="redirectTo" value="/idea-bank" />
+                <input type="text" name="jiraKey" placeholder="⚡ Jira key, e.g. FCK-3512" required />
+                <button class="attach-btn" type="submit">Attach</button>
+              </form>
             </div>
           );
         })}

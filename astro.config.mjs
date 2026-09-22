@@ -94,6 +94,27 @@ export default defineConfig({
         access: 'secret',
         optional: true,
       }),
+
+      // --- Jira (Fa Engine) — one-way read sync, src/core/jira.ts ------
+      // Both optional: the background sync (src/core/jira-scheduler.ts) and
+      // the manual "attach Jira key" endpoint both no-op quietly without
+      // these, rather than failing the whole app.
+      JIRA_EMAIL: envField.string({
+        context: 'server',
+        access: 'secret',
+        optional: true,
+      }),
+      JIRA_API_TOKEN: envField.string({
+        context: 'server',
+        access: 'secret',
+        optional: true,
+      }),
+      // 10 minutes, in milliseconds.
+      JIRA_SYNC_INTERVAL_MS: envField.number({
+        context: 'server',
+        access: 'secret',
+        default: 600_000,
+      }),
     },
   },
 
