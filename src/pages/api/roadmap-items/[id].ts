@@ -1,6 +1,6 @@
 /** Full edit — the Epic detail page's save form. Plain HTML form POST (browsers don't send PATCH from a <form>). */
 import type { APIRoute } from 'astro';
-import { resolveOrCreateOwner, updateRoadmapItem } from '../../../modules/roadmap/write';
+import { resolveJiraTeamMembersField, resolveOrCreateOwner, updateRoadmapItem } from '../../../modules/roadmap/write';
 
 function str(v: FormDataEntryValue | null): string | null {
   const s = typeof v === 'string' ? v.trim() : '';
@@ -12,7 +12,11 @@ export const POST: APIRoute = async ({ params, request, redirect, locals }) => {
   if (!id) return new Response('Missing id', { status: 400 });
 
   const form = await request.formData();
-  const assigneeIds = form.getAll('assigneeIds').filter((v): v is string => typeof v === 'string' && v !== '');
+  const jiraTeamIds = await resolveJiraTeamMembersField(str(form.get('jiraTeamMembers')));
+  const assigneeIds = [
+    ...form.getAll('assigneeIds').filter((v): v is string => typeof v === 'string' && v !== ''),
+    ...jiraTeamIds,
+  ];
   const ownerId = await resolveOrCreateOwner(str(form.get('ownerName')));
 
   try {

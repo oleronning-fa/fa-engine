@@ -1,5 +1,6 @@
 ---
 import RoadmapLayout from '../../layouts/RoadmapLayout.astro';
+import JiraPeoplePicker from '../../components/JiraPeoplePicker.astro';
 import {
   getAllUsers,
   getAssigneeIdsForItem,
@@ -94,6 +95,7 @@ function isImage(mimeType: string): boolean {
         {people.map((p) => <option value={p.id} selected={assigneeIds.has(p.id)}>{p.name}</option>)}
       </select>
     </div>
+    <JiraPeoplePicker id="editJira" />
 
     <div class="section-divider"><span>Tracking</span></div>
     <div class="field-row">

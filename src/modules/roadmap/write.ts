@@ -78,6 +78,56 @@ export async function resolveOrCreateOwner(name: string | null | undefined): Pro
   return trimmed ? resolveOrCreatePersonId(trimmed) : null;
 }
 
+export interface JiraUserRef {
+  accountId: string;
+  displayName: string;
+  email: string | null;
+}
+
+/**
+ * A person picked from the Jira search box on Team (OC, 29 Sep) — real Jira
+ * identities, not free text. Three cases, checked in order: (1) already
+ * linked to this exact Jira account, (2) an existing app_user with a
+ * matching email that just hasn't been linked yet (linked now, not
+ * duplicated), (3) genuinely new — created with the link already set.
+ */
+export async function resolveOrCreateFromJiraUser(user: JiraUserRef): Promise<string> {
+  const [byJira] = await db.select({ id: appUser.id }).from(appUser).where(eq(appUser.jiraAccountId, user.accountId)).limit(1);
+  if (byJira) return byJira.id;
+
+  if (user.email) {
+    const [byEmail] = await db.select({ id: appUser.id }).from(appUser).where(eq(appUser.email, user.email)).limit(1);
+    if (byEmail) {
+      await db.update(appUser).set({ jiraAccountId: user.accountId }).where(eq(appUser.id, byEmail.id));
+      return byEmail.id;
+    }
+  }
+
+  const [created] = await db
+    .insert(appUser)
+    .values({ name: user.displayName, email: user.email, jiraAccountId: user.accountId })
+    .returning({ id: appUser.id });
+  return created.id;
+}
+
+/** Parses the Jira people picker's hidden JSON field (components/JiraPeoplePicker.astro) into resolved app_user ids. Empty/invalid input → no ids, never throws. */
+export async function resolveJiraTeamMembersField(raw: string | null | undefined): Promise<string[]> {
+  if (!raw) return [];
+  let picks: unknown;
+  try {
+    picks = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(picks)) return [];
+
+  const valid = picks.filter(
+    (p): p is JiraUserRef =>
+      !!p && typeof p === 'object' && typeof (p as JiraUserRef).accountId === 'string' && typeof (p as JiraUserRef).displayName === 'string',
+  );
+  return Promise.all(valid.map(resolveOrCreateFromJiraUser));
+}
+
 export async function createRoadmapItem(input: CreateItemInput): Promise<string> {
   const actorId = await resolveActor(input.actorEmail);
 

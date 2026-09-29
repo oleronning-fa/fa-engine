@@ -5,7 +5,7 @@
  * re-POST on refresh).
  */
 import type { APIRoute } from 'astro';
-import { createRoadmapItem, resolveOrCreateOwner, resolveOrCreatePeople } from '../../modules/roadmap/write';
+import { createRoadmapItem, resolveJiraTeamMembersField, resolveOrCreateOwner, resolveOrCreatePeople } from '../../modules/roadmap/write';
 
 function str(v: FormDataEntryValue | null): string | null {
   const s = typeof v === 'string' ? v.trim() : '';
@@ -29,6 +29,7 @@ export const POST: APIRoute = async ({ request, redirect, locals }) => {
   try {
     if (kind === 'epic') {
       const ownerId = await resolveOrCreateOwner(str(form.get('ownerName')));
+      const jiraTeamIds = await resolveJiraTeamMembersField(str(form.get('jiraTeamMembers')));
       await createRoadmapItem({
         type: 'Epic',
         title: form.get('title') as string,
@@ -38,7 +39,7 @@ export const POST: APIRoute = async ({ request, redirect, locals }) => {
         size: 'Ongoing',
         ownerId,
         colorLabel: str(form.get('colorLabel')),
-        assigneeIds: ids(form, 'assigneeIds'),
+        assigneeIds: [...ids(form, 'assigneeIds'), ...jiraTeamIds],
         actorEmail,
       });
       return redirect('/epics', 303);

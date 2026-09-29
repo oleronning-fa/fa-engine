@@ -24,6 +24,8 @@ export const appUser = pgTable('app_user', {
   email: text('email').unique(),
   /** OIDC `sub`. Null until the person has actually signed in. */
   externalId: text('external_id').unique(),
+  /** Jira Cloud `accountId` — set when this person was added (or matched) via the Jira user search on Team (OC, 29 Sep). Null for anyone never linked. */
+  jiraAccountId: text('jira_account_id').unique(),
   name: text('name').notNull(),
   initials: text('initials'),
   /** One of `USER_ROLES`. Guarded in domain code, not by a DB enum. */

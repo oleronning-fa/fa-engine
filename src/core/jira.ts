@@ -102,3 +102,49 @@ const SUBSTATUS_HINTS: Record<string, string> = {
 export function mapSubstatus(rawStatusName: string): string {
   return SUBSTATUS_HINTS[rawStatusName.trim().toLowerCase()] ?? rawStatusName;
 }
+
+export interface JiraUserResult {
+  accountId: string;
+  displayName: string;
+  emailAddress: string | null;
+  avatarUrl: string | null;
+}
+
+/**
+ * Search-as-you-type for the Team picker (OC, 29 Sep) — "Find users" search
+ * against the whole Jira instance, not scoped to one project. Filters to
+ * real (non-app, non-deleted) accounts; a query under 2 characters isn't
+ * sent — Jira's own search needs at least that much to return anything
+ * useful, so this avoids a wasted round trip per keystroke.
+ */
+export async function searchJiraUsers(query: string, creds: JiraCredentials): Promise<JiraUserResult[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+
+  const url = `${JIRA_BASE}/rest/api/3/user/search?query=${encodeURIComponent(q)}&maxResults=10`;
+  const res = await fetch(url, {
+    headers: { Authorization: authHeader(creds), Accept: 'application/json' },
+    signal: AbortSignal.timeout(10_000),
+  });
+
+  if (res.status === 401) throw new JiraAuthError('Jira rejected the credentials (401).');
+  if (!res.ok) throw new Error(`Jira user search failed: ${res.status}`);
+
+  const data = (await res.json()) as {
+    accountId: string;
+    accountType?: string;
+    displayName: string;
+    emailAddress?: string;
+    active?: boolean;
+    avatarUrls?: Record<string, string>;
+  }[];
+
+  return data
+    .filter((u) => u.accountType === 'atlassian' && u.active !== false)
+    .map((u) => ({
+      accountId: u.accountId,
+      displayName: u.displayName,
+      emailAddress: u.emailAddress ?? null,
+      avatarUrl: u.avatarUrls?.['24x24'] ?? null,
+    }));
+}

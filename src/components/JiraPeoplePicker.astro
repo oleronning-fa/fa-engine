@@ -1,0 +1,27 @@
+---
+/**
+ * Search-as-you-type against Jira's "Find users" API (see
+ * src/pages/api/jira/users.ts) — adds real Jira identities to Team, distinct
+ * from the plain <select> of already-known people above it. Picking a result
+ * doesn't touch the form's own submit; the JS in RoadmapLayout.astro's shared
+ * script keeps a JSON array of picks in the hidden input, and the server
+ * resolves each one (create or link) via resolveOrCreateFromJiraUser.
+ *
+ * Used on both the New Epic dialog and the Epic edit page — one definition,
+ * so the picker behavior can't drift between the two.
+ */
+interface Props {
+  /** Unique per form instance — lets two pickers coexist on one page without id collisions. */
+  id: string;
+}
+const { id } = Astro.props;
+---
+<div class="field">
+  <label for={`${id}-search`}>Add from Jira <span class="opt">(search by name)</span></label>
+  <div class="jira-people-picker" data-picker-id={id}>
+    <input type="text" id={`${id}-search`} class="jira-people-search" placeholder="Search Jira people…" autocomplete="off" />
+    <div class="jira-people-results" hidden></div>
+    <div class="jira-people-chips"></div>
+    <input type="hidden" name="jiraTeamMembers" class="jira-people-value" value="[]" />
+  </div>
+</div>

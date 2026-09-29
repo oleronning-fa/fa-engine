@@ -3,6 +3,7 @@ import '@fontsource-variable/inter';
 import '../styles/roadmap.css';
 import { AREAS, EPIC_LABEL_COLORS } from '../core/codesets';
 import { getAllUsers, getEpicOptions } from '../modules/roadmap/view/queries';
+import JiraPeoplePicker from '../components/JiraPeoplePicker.astro';
 
 interface Props {
   /** Page title, shown in the browser tab and as the topbar breadcrumb. */
@@ -122,6 +123,7 @@ const epicOptions = await getEpicOptions();
               {people.map((p) => <option value={p.id}>{p.name}</option>)}
             </select>
           </div>
+          <JiraPeoplePicker id="epJira" />
           <div class="field-row">
             <div class="field">
               <label for="epOwner">Owner <span class="opt">(optional — type a name)</span></label>
@@ -338,7 +340,7 @@ const epicOptions = await getEpicOptions();
 
     <script>
       // Native <dialog> — showModal()/close() are the platform's own overlay +
-      // focus trap + ESC-to-close. This is the only JS on the page.
+      // focus trap + ESC-to-close.
       document.querySelectorAll<HTMLButtonElement>('[data-open-dialog]').forEach((btn) => {
         btn.addEventListener('click', () => {
           const id = btn.dataset.openDialog;
@@ -363,6 +365,93 @@ const epicOptions = await getEpicOptions();
         form.addEventListener('submit', (e) => {
           if (!window.confirm(form.dataset.confirm)) e.preventDefault();
         });
+      });
+
+      // Jira people picker (components/JiraPeoplePicker.astro) — search-as-
+      // you-type against /api/jira/users, chips for what's picked so far,
+      // kept as JSON in a hidden input the server resolves on submit
+      // (resolveOrCreateFromJiraUser). Each .jira-people-picker is fully
+      // independent, so the New Epic dialog and the Epic edit page's copy
+      // never interfere with each other.
+      interface JiraPersonPick {
+        accountId: string;
+        displayName: string;
+        email: string | null;
+      }
+      document.querySelectorAll<HTMLElement>('.jira-people-picker').forEach((picker) => {
+        const search = picker.querySelector<HTMLInputElement>('.jira-people-search')!;
+        const results = picker.querySelector<HTMLElement>('.jira-people-results')!;
+        const chips = picker.querySelector<HTMLElement>('.jira-people-chips')!;
+        const hidden = picker.querySelector<HTMLInputElement>('.jira-people-value')!;
+        let picks: JiraPersonPick[] = [];
+        let debounceTimer: ReturnType<typeof setTimeout>;
+
+        function renderChips() {
+          hidden.value = JSON.stringify(picks);
+          chips.innerHTML = '';
+          picks.forEach((p, i) => {
+            const chip = document.createElement('span');
+            chip.className = 'person-tag';
+            chip.textContent = p.displayName + ' ';
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.textContent = '✕';
+            remove.setAttribute('aria-label', `Remove ${p.displayName}`);
+            remove.addEventListener('click', () => {
+              picks.splice(i, 1);
+              renderChips();
+            });
+            chip.appendChild(remove);
+            chips.appendChild(chip);
+          });
+        }
+
+        function closeResults() {
+          results.hidden = true;
+          results.innerHTML = '';
+        }
+
+        search.addEventListener('input', () => {
+          clearTimeout(debounceTimer);
+          const q = search.value.trim();
+          if (q.length < 2) {
+            closeResults();
+            return;
+          }
+          debounceTimer = setTimeout(async () => {
+            const res = await fetch(`/api/jira/users?q=${encodeURIComponent(q)}`);
+            if (!res.ok) {
+              closeResults();
+              return;
+            }
+            const users: { accountId: string; displayName: string; emailAddress: string | null }[] = await res.json();
+            results.innerHTML = '';
+            const fresh = users.filter((u) => !picks.some((p) => p.accountId === u.accountId));
+            if (fresh.length === 0) {
+              closeResults();
+              return;
+            }
+            fresh.forEach((u) => {
+              const item = document.createElement('button');
+              item.type = 'button';
+              item.className = 'jira-people-result';
+              item.textContent = u.emailAddress ? `${u.displayName} (${u.emailAddress})` : u.displayName;
+              item.addEventListener('click', () => {
+                picks.push({ accountId: u.accountId, displayName: u.displayName, email: u.emailAddress });
+                renderChips();
+                search.value = '';
+                closeResults();
+                search.focus();
+              });
+              results.appendChild(item);
+            });
+            results.hidden = false;
+          }, 250);
+        });
+
+        // A blur would close the results before a click on one registers —
+        // defer just long enough for that click to land first.
+        search.addEventListener('blur', () => setTimeout(closeResults, 150));
       });
     </script>
   </body>
