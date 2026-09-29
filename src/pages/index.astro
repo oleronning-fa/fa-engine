@@ -1,5 +1,6 @@
 ---
 import RoadmapLayout from '../layouts/RoadmapLayout.astro';
+import JiraIssuePicker from '../components/JiraIssuePicker.astro';
 import type { RoadmapItemType } from '../core/codesets';
 import { getAssigneesByItemIds, getBoardItems, type ItemRow } from '../modules/roadmap/view/queries';
 import { avatarColor, fmtDateShort, initials, jiraUrl, priorityChipClass, taskStatusChip, typeIcon } from '../modules/roadmap/view/render';
@@ -31,6 +32,9 @@ const buckets = COLUMNS.map((c) => ({
 }));
 ---
 <RoadmapLayout title="All items" active="list">
+  <div class="toolbar" slot="toolbar">
+    <JiraIssuePicker id="allItemsJira" />
+  </div>
   <div class="board-scroll">
     <div class="board">
       {buckets.map((col) => {

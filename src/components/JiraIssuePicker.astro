@@ -1,0 +1,20 @@
+---
+/**
+ * Search-as-you-type against Jira's own "issue picker" API (see
+ * src/pages/api/jira/issues.ts) — type a number or a title, pick a result,
+ * and it's pulled straight in as a new Task (src/pages/api/roadmap-items/
+ * from-jira.ts) via createRoadmapItemFromJira. The search itself needs JS
+ * (see RoadmapLayout.astro's shared script); picking a result just fills
+ * the hidden field and submits this form like any other in the app.
+ */
+interface Props {
+  /** Unique per instance — lets more than one picker exist on a page without id collisions. */
+  id: string;
+}
+const { id } = Astro.props;
+---
+<form method="POST" action="/api/roadmap-items/from-jira" class="jira-issue-picker" data-picker-id={id}>
+  <input type="text" id={`${id}-search`} class="jira-issue-search" placeholder="Add from Jira — number or title…" autocomplete="off" />
+  <div class="jira-people-results" hidden></div>
+  <input type="hidden" name="jiraKey" />
+</form>

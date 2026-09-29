@@ -13,6 +13,8 @@ const JIRA_BASE = 'https://startsiden.atlassian.net';
 
 export interface JiraSnapshot {
   key: string;
+  /** The issue's title. Only needed for pulling a NEW roadmap_item straight from Jira (OC, 29 Sep) — every other use of a snapshot already has its own title. */
+  summary: string;
   /** Jira's own status name, verbatim (e.g. "ON PRODUCTION") — projects have their own workflows, not our sheet-derived dropdown. */
   statusName: string;
   isSubtask: boolean;
@@ -50,7 +52,7 @@ function authHeader({ email, token }: JiraCredentials): string {
  * Throws JiraAuthError on 401 (the credentials themselves are bad).
  */
 export async function fetchJiraIssue(key: string, creds: JiraCredentials): Promise<JiraSnapshot | null> {
-  const url = `${JIRA_BASE}/rest/api/3/issue/${encodeURIComponent(key)}?fields=status,issuetype,resolutiondate,assignee`;
+  const url = `${JIRA_BASE}/rest/api/3/issue/${encodeURIComponent(key)}?fields=summary,status,issuetype,resolutiondate,assignee`;
   const res = await fetch(url, {
     headers: { Authorization: authHeader(creds), Accept: 'application/json' },
     signal: AbortSignal.timeout(10_000),
@@ -63,6 +65,7 @@ export async function fetchJiraIssue(key: string, creds: JiraCredentials): Promi
   const data = (await res.json()) as {
     key: string;
     fields: {
+      summary?: string;
       status?: { name?: string };
       issuetype?: { subtask?: boolean };
       resolutiondate?: string | null;
@@ -72,11 +75,64 @@ export async function fetchJiraIssue(key: string, creds: JiraCredentials): Promi
   const f = data.fields ?? {};
   return {
     key: data.key,
+    summary: f.summary ?? data.key,
     statusName: f.status?.name ?? 'Unknown',
     isSubtask: Boolean(f.issuetype?.subtask),
     resolutionDate: f.resolutiondate ? f.resolutiondate.slice(0, 10) : null,
     assigneeName: f.assignee?.displayName ?? null,
   };
+}
+
+export interface JiraIssueResult {
+  key: string;
+  summary: string;
+}
+
+/**
+ * Every project prefix actually seen in the imported roadmap data (OC, 29
+ * Sep — `SELECT DISTINCT` on jira_key). JQL can't match a key by its numeric
+ * suffix alone across every project on the instance, so a bare-number query
+ * ("3172") is tried against each of these specifically. Add a prefix here
+ * if a new project starts showing up in real data.
+ */
+const KNOWN_PROJECT_PREFIXES = ['FCK', 'FADT', 'FIB', 'FAPPS'];
+
+/**
+ * Search-as-you-type for "pull in a Jira task" (OC, 29 Sep) — real JQL
+ * search, not the `/issue/picker` endpoint: that one only searches issues
+ * the calling account has personally viewed recently ("History Search"),
+ * which is the wrong tool for finding an arbitrary issue by number or
+ * title. `/rest/api/3/search` (the older, unscoped search) was removed in
+ * 2024 in favour of `/rest/api/3/search/jql`, used here.
+ *
+ * A full key ("FCK-3172") matches exactly; a bare number tries every known
+ * project prefix; anything else is a free-text match against the summary.
+ */
+export async function searchJiraIssues(query: string, creds: JiraCredentials): Promise<JiraIssueResult[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+
+  const escaped = q.replace(/"/g, '\\"');
+  let jql: string;
+  if (/^[a-zA-Z]+-\d+$/.test(q)) {
+    jql = `key = "${escaped.toUpperCase()}"`;
+  } else if (/^\d+$/.test(q)) {
+    jql = `key in (${KNOWN_PROJECT_PREFIXES.map((p) => `"${p}-${escaped}"`).join(',')})`;
+  } else {
+    jql = `text ~ "${escaped}*"`;
+  }
+
+  const url = `${JIRA_BASE}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=10&fields=summary`;
+  const res = await fetch(url, {
+    headers: { Authorization: authHeader(creds), Accept: 'application/json' },
+    signal: AbortSignal.timeout(10_000),
+  });
+
+  if (res.status === 401) throw new JiraAuthError('Jira rejected the credentials (401).');
+  if (!res.ok) throw new Error(`Jira issue search failed: ${res.status}`);
+
+  const data = (await res.json()) as { issues?: { key: string; fields?: { summary?: string } }[] };
+  return (data.issues ?? []).map((i) => ({ key: i.key, summary: i.fields?.summary ?? i.key }));
 }
 
 /**

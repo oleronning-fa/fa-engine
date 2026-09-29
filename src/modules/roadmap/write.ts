@@ -503,6 +503,35 @@ export async function attachJiraKey(itemId: string, jiraKey: string, snapshot: J
 }
 
 /**
+ * "Add from Jira" on the All items board (OC, 29 Sep) — pulls a Jira issue
+ * straight in as a new Task, title included, rather than making the user
+ * create the item by hand first and attach the key after (that's
+ * attachJiraKey, for the Idea bank). Refuses a subtask outright, same rule
+ * as everywhere else Jira sync touches (feltkatalog §0).
+ *
+ * Creates with status 'In Jira' and the schema's own backlogged=false
+ * default — unlike attachJiraKey's deliberate backlogged=true (an idea
+ * you're not necessarily picking up yet), this lands straight on the board,
+ * then applyJiraSnapshot immediately reconciles it to the real current
+ * Jira state instead of sitting under "Neste" until the next scheduled sync.
+ */
+export async function createRoadmapItemFromJira(snapshot: JiraSnapshot, actorEmail?: string | null): Promise<string> {
+  if (snapshot.isSubtask) {
+    throw new Error(`${snapshot.key} is a subtask — only parent tasks can be pulled in directly.`);
+  }
+
+  const id = await createRoadmapItem({
+    type: 'Task',
+    title: snapshot.summary,
+    status: 'In Jira',
+    jiraKey: snapshot.key,
+    actorEmail,
+  });
+  await applyJiraSnapshot(id, snapshot, actorEmail);
+  return id;
+}
+
+/**
  * A progress note on an Epic — comments[] in feltkatalog §2, distinct from
  * roadmap_status_log (the system's own automatic entries). `authorId` is
  * picked from a select on the form, not resolved from a session — there's no

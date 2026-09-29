@@ -299,8 +299,11 @@ a{color:var(--interactive)}
   line-height:1;cursor:pointer}
 .person-tag button:hover{color:var(--text-primary)}
 
-/* ---------- Jira people picker (search Team from Jira) ---------- */
-.jira-people-picker{position:relative}
+/* ---------- Jira pickers — search Team, or pull in an issue, from Jira ---------- */
+.jira-people-picker, .jira-issue-picker{position:relative}
+.jira-issue-search{width:280px;height:30px;border-radius:6px;border:1px solid var(--border);background:var(--surface);
+  color:var(--text-primary);font-size:12.5px;font-weight:500;padding:0 10px}
+.jira-issue-search:focus{border-color:var(--interactive);outline:none}
 .jira-people-results{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:20;max-height:220px;overflow-y:auto;
   background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);
   display:flex;flex-direction:column;padding:4px}

@@ -453,6 +453,58 @@ const epicOptions = await getEpicOptions();
         // defer just long enough for that click to land first.
         search.addEventListener('blur', () => setTimeout(closeResults, 150));
       });
+
+      // Jira issue picker (components/JiraIssuePicker.astro) — search-as-
+      // you-type against /api/jira/issues; picking a result fills the
+      // hidden jiraKey field and submits the form like any other in the
+      // app (src/pages/api/roadmap-items/from-jira.ts does the rest).
+      document.querySelectorAll<HTMLFormElement>('.jira-issue-picker').forEach((form) => {
+        const search = form.querySelector<HTMLInputElement>('.jira-issue-search')!;
+        const results = form.querySelector<HTMLElement>('.jira-people-results')!;
+        const keyField = form.querySelector<HTMLInputElement>('input[name="jiraKey"]')!;
+        let debounceTimer: ReturnType<typeof setTimeout>;
+
+        function closeResults() {
+          results.hidden = true;
+          results.innerHTML = '';
+        }
+
+        search.addEventListener('input', () => {
+          clearTimeout(debounceTimer);
+          const q = search.value.trim();
+          if (q.length < 2) {
+            closeResults();
+            return;
+          }
+          debounceTimer = setTimeout(async () => {
+            const res = await fetch(`/api/jira/issues?q=${encodeURIComponent(q)}`);
+            if (!res.ok) {
+              closeResults();
+              return;
+            }
+            const issues: { key: string; summary: string }[] = await res.json();
+            results.innerHTML = '';
+            if (issues.length === 0) {
+              closeResults();
+              return;
+            }
+            issues.forEach((issue) => {
+              const item = document.createElement('button');
+              item.type = 'button';
+              item.className = 'jira-people-result';
+              item.textContent = `${issue.key} — ${issue.summary}`;
+              item.addEventListener('click', () => {
+                keyField.value = issue.key;
+                form.requestSubmit();
+              });
+              results.appendChild(item);
+            });
+            results.hidden = false;
+          }, 250);
+        });
+
+        search.addEventListener('blur', () => setTimeout(closeResults, 150));
+      });
     </script>
   </body>
 </html>
