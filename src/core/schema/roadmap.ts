@@ -88,6 +88,11 @@ export const roadmapItem = pgTable(
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     /** One of `EPIC_LABEL_COLORS` — a plain color flag for importance, Epic only (OC, 29 Sep). Not tied to `priority`. */
     colorLabel: text('color_label'),
+    /** Jira's real assignee display name — informational, mirrored one-way, never a real app_user relation (OC, 29 Sep). */
+    jiraAssigneeName: text('jira_assignee_name'),
+    /** Jira's own time-tracking, in seconds — pulled read-only, never a manually-typed hour estimate (feltkatalog's own "hour estimates died at 0% fill" rule is about hand entry, not this). */
+    jiraEstimateSeconds: integer('jira_estimate_seconds'),
+    jiraSpentSeconds: integer('jira_spent_seconds'),
     /**
      * Manual drag-and-drop rank on the Epics list (OC, 29 Sep) — lower sorts
      * first. Fractional so a drop between two rows can average their values

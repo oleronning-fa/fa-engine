@@ -50,6 +50,13 @@
       "when": 1790671884452,
       "tag": "0006_reflective_squadron_supreme",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790678182428,
+      "tag": "0007_keen_anthem",
+      "breakpoints": true
     }
   ]
 }

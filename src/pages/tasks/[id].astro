@@ -1,0 +1,163 @@
+---
+import RoadmapLayout from '../../layouts/RoadmapLayout.astro';
+import {
+  getAllUsers,
+  getAssigneeIdsForItem,
+  getEpicOptions,
+  getItemById,
+} from '../../modules/roadmap/view/queries';
+import { AREAS } from '../../core/codesets';
+import { fmtDateShort, jiraUrl, typeIcon } from '../../modules/roadmap/view/render';
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/', 303);
+
+const item = await getItemById(id);
+if (!item || item.type === 'Epic') return Astro.redirect('/', 303);
+
+const people = await getAllUsers();
+const epicOptions = await getEpicOptions();
+const assigneeIds = new Set(await getAssigneeIdsForItem(id));
+const icon = typeIcon(item.type as 'Task' | 'Bug' | 'Research');
+
+const hasJiraInfo = item.jiraAssigneeName || item.jiraEstimateSeconds;
+function fmtHours(seconds: number | null): string {
+  return seconds ? `${(seconds / 3600).toFixed(seconds % 3600 === 0 ? 0 : 1)}h` : '0h';
+}
+---
+<RoadmapLayout title={item.title} active="list">
+  <a href="/" class="area-tag" style="display:inline-block;margin-bottom:14px">&larr; Back to All items</a>
+
+  {hasJiraInfo && (
+    <div class="jira-info-bar">
+      <span class:list={['type-icon', icon.class]}>{icon.letter}</span>
+      {item.jiraKey && <a class="jira-badge" href={jiraUrl(item.jiraKey)} target="_blank" rel="noopener noreferrer">{item.jiraKey}</a>}
+      {item.jiraAssigneeName && <span class="area-tag" title="Jira assignee">👤 {item.jiraAssigneeName}</span>}
+      {item.jiraEstimateSeconds ? (
+        <span class="area-tag" title="Jira time tracking">⏱ {fmtHours(item.jiraSpentSeconds)} / {fmtHours(item.jiraEstimateSeconds)}</span>
+      ) : null}
+      <span class="muted" style="font-size:11.5px">— from Jira, read-only</span>
+    </div>
+  )}
+
+  <form method="POST" action={`/api/roadmap-items/${item.id}`} style="max-width:640px;display:flex;flex-direction:column;gap:16px">
+    <input type="hidden" name="kind" value="task" />
+    <div class="field-row">
+      <div class="field">
+        <label for="title">Title</label>
+        <input type="text" id="title" name="title" value={item.title} required />
+      </div>
+      <div class="field">
+        <label for="type">Type</label>
+        <select id="type" name="type">
+          {(['Task', 'Bug', 'Research'] as const).map((t) => <option selected={t === item.type}>{t}</option>)}
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="description">Description <span class="opt">(what, and why)</span></label>
+      <textarea id="description" name="description">{item.description ?? ''}</textarea>
+    </div>
+    <div class="field">
+      <label for="notes">Notes <span class="opt">(long free text)</span></label>
+      <textarea class="notes" id="notes" name="notes">{item.notes ?? ''}</textarea>
+    </div>
+
+    <div class="section-divider"><span>Placement</span></div>
+    <div class="field-row">
+      <div class="field">
+        <label for="area">Area <span class="opt">(required)</span></label>
+        <select id="area" name="area" required>
+          {AREAS.map((a) => <option value={a.id} selected={a.id === item.area}>{a.label}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="parentId">Parent Epic <span class="opt">(optional)</span></label>
+        <select id="parentId" name="parentId">
+          <option value="">No parent</option>
+          {epicOptions.map((e) => <option value={e.id} selected={e.id === item.parentId}>{e.name}</option>)}
+        </select>
+      </div>
+    </div>
+
+    <div class="section-divider"><span>Ownership &amp; status</span></div>
+    <div class="field-row">
+      <div class="field">
+        <label for="ownerId">Owner <span class="opt">(Hegnar Media)</span></label>
+        <select id="ownerId" name="ownerId">
+          <option value="">Not set</option>
+          {people.map((p) => <option value={p.id} selected={p.id === item.ownerId}>{p.name}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="coordinatorId">Coordinator <span class="opt">(Profico)</span></label>
+        <select id="coordinatorId" name="coordinatorId">
+          <option value="">Not set</option>
+          {people.map((p) => <option value={p.id} selected={p.id === item.coordinatorId}>{p.name}</option>)}
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="status">Status</label>
+      <select id="status" name="status">
+        {['Idea', 'Under review', 'Prioritized', 'In Jira', 'Delivered'].map((s) => <option selected={s === item.status}>{s}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label for="assigneeIds">Assignees (Team)</label>
+      <select id="assigneeIds" name="assigneeIds" multiple>
+        {people.map((p) => <option value={p.id} selected={assigneeIds.has(p.id)}>{p.name}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label for="newPeople">New person? <span class="opt">(not in the list above — comma-separated, they'll be added)</span></label>
+      <input type="text" id="newPeople" name="newPeople" placeholder="e.g. Kari Nordmann" />
+    </div>
+
+    <div class="section-divider"><span>Estimate &amp; tracking</span></div>
+    <div class="field-row">
+      <div class="field">
+        <label for="priority">Priority</label>
+        <select id="priority" name="priority">
+          {['Medium', 'Hotfix', 'High', 'Low'].map((p) => <option selected={p === item.priority}>{p}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="size">Size <span class="opt">(optional t-shirt, never hours)</span></label>
+        <select id="size" name="size">
+          <option value="">—</option>
+          {['S', 'M', 'L', 'Ongoing'].map((s) => <option selected={s === item.size}>{s}</option>)}
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="targetDate">Target date <span class="opt">(optional)</span></label>
+        <input type="date" id="targetDate" name="targetDate" value={item.targetDate ?? ''} />
+      </div>
+      <div class="field">
+        <label for="jiraKey">Jira key <span class="opt">(optional, not unique)</span></label>
+        <input type="text" id="jiraKey" name="jiraKey" value={item.jiraKey ?? ''} placeholder="e.g. FCK-3172" />
+      </div>
+    </div>
+    <div class="field">
+      <label for="discipline"><input type="checkbox" id="discipline" name="discipline" checked={item.discipline === 'Design'} style="width:auto;margin-right:6px;vertical-align:-1px" /> Design discipline</label>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:8px;border-top:1px solid var(--border)">
+      <a href="/" class="btn btn-ghost">Cancel</a>
+      <button class="btn btn-primary" type="submit">Save</button>
+    </div>
+  </form>
+
+  <form
+    method="POST"
+    action={`/api/roadmap-items/${item.id}/archive`}
+    data-confirm={`Remove "${item.title}"? It won't be deleted — just hidden from every list.`}
+    style="max-width:640px;margin-top:16px"
+  >
+    <input type="hidden" name="redirectTo" value="/" />
+    <button class="card-quick-status card-quick-remove" type="submit">🗑 Remove</button>
+  </form>
+</RoadmapLayout>

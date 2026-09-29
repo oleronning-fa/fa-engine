@@ -505,6 +505,38 @@ const epicOptions = await getEpicOptions();
 
         search.addEventListener('blur', () => setTimeout(closeResults, 150));
       });
+
+      // All items board — drag a card between columns (src/pages/index.astro).
+      // Persists via POST /api/roadmap-items/:id/move-column, then reloads so
+      // the dropped card's real, server-confirmed bucket is what's shown.
+      document.querySelectorAll<HTMLElement>('.board-card[draggable]').forEach((card) => {
+        card.addEventListener('dragstart', (e) => {
+          (e as DragEvent).dataTransfer?.setData('text/plain', card.dataset.id ?? '');
+          card.classList.add('dragging');
+        });
+        card.addEventListener('dragend', () => card.classList.remove('dragging'));
+      });
+      document.querySelectorAll<HTMLElement>('.board-col-body[data-col]').forEach((colBody) => {
+        colBody.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          colBody.classList.add('drag-over');
+        });
+        colBody.addEventListener('dragleave', () => colBody.classList.remove('drag-over'));
+        colBody.addEventListener('drop', async (e) => {
+          e.preventDefault();
+          colBody.classList.remove('drag-over');
+          const cardId = (e as DragEvent).dataTransfer?.getData('text/plain');
+          const column = colBody.dataset.col;
+          if (!cardId || !column) return;
+
+          await fetch(`/api/roadmap-items/${cardId}/move-column`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ column }),
+          });
+          location.reload();
+        });
+      });
     </script>
   </body>
 </html>

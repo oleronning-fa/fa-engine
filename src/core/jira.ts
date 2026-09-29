@@ -17,10 +17,15 @@ export interface JiraSnapshot {
   summary: string;
   /** Jira's own status name, verbatim (e.g. "ON PRODUCTION") — projects have their own workflows, not our sheet-derived dropdown. */
   statusName: string;
+  /** Jira's real issue type name (e.g. "Bug", "Story", "Task") — OC, 29 Sep: drives the board card's feature/bug symbol. */
+  issueTypeName: string;
   isSubtask: boolean;
   /** YYYY-MM-DD, or null if unresolved. */
   resolutionDate: string | null;
   assigneeName: string | null;
+  /** Seconds, from Jira's own time tracking — null when the issue has no estimate/log at all. Read-only mirror, never a manually-typed hour estimate. */
+  estimateSeconds: number | null;
+  spentSeconds: number | null;
 }
 
 export class JiraAuthError extends Error {}
@@ -52,7 +57,7 @@ function authHeader({ email, token }: JiraCredentials): string {
  * Throws JiraAuthError on 401 (the credentials themselves are bad).
  */
 export async function fetchJiraIssue(key: string, creds: JiraCredentials): Promise<JiraSnapshot | null> {
-  const url = `${JIRA_BASE}/rest/api/3/issue/${encodeURIComponent(key)}?fields=summary,status,issuetype,resolutiondate,assignee`;
+  const url = `${JIRA_BASE}/rest/api/3/issue/${encodeURIComponent(key)}?fields=summary,status,issuetype,resolutiondate,assignee,timetracking`;
   const res = await fetch(url, {
     headers: { Authorization: authHeader(creds), Accept: 'application/json' },
     signal: AbortSignal.timeout(10_000),
@@ -67,9 +72,10 @@ export async function fetchJiraIssue(key: string, creds: JiraCredentials): Promi
     fields: {
       summary?: string;
       status?: { name?: string };
-      issuetype?: { subtask?: boolean };
+      issuetype?: { name?: string; subtask?: boolean };
       resolutiondate?: string | null;
       assignee?: { displayName?: string } | null;
+      timetracking?: { originalEstimateSeconds?: number; timeSpentSeconds?: number };
     };
   };
   const f = data.fields ?? {};
@@ -77,9 +83,12 @@ export async function fetchJiraIssue(key: string, creds: JiraCredentials): Promi
     key: data.key,
     summary: f.summary ?? data.key,
     statusName: f.status?.name ?? 'Unknown',
+    issueTypeName: f.issuetype?.name ?? 'Task',
     isSubtask: Boolean(f.issuetype?.subtask),
     resolutionDate: f.resolutiondate ? f.resolutiondate.slice(0, 10) : null,
     assigneeName: f.assignee?.displayName ?? null,
+    estimateSeconds: f.timetracking?.originalEstimateSeconds ?? null,
+    spentSeconds: f.timetracking?.timeSpentSeconds ?? null,
   };
 }
 
@@ -149,6 +158,7 @@ export async function searchJiraIssues(query: string, creds: JiraCredentials): P
  */
 const SUBSTATUS_HINTS: Record<string, string> = {
   'to do': 'Todo',
+  backlog: 'Todo',
   waiting: 'Waiting',
   'in progress': 'In progress',
   'code review': 'CR',
@@ -161,7 +171,13 @@ const SUBSTATUS_HINTS: Record<string, string> = {
 };
 
 export function mapSubstatus(rawStatusName: string): string {
-  return SUBSTATUS_HINTS[rawStatusName.trim().toLowerCase()] ?? rawStatusName;
+  // Real workflow status names vary in separator style across projects —
+  // "TO-DO" (FCK) vs "To Do" vs "IN_PROGRESS" — so hyphens/underscores are
+  // normalised to spaces before lookup. Without this, "TO-DO" fails to match
+  // the 'to do' hint, is stored unmapped, and the item lands in no board
+  // column at all (not Neste, not Backlog — inCol() matches none of them).
+  const normalized = rawStatusName.trim().toLowerCase().replace(/[-_]+/g, ' ');
+  return SUBSTATUS_HINTS[normalized] ?? rawStatusName;
 }
 
 export interface JiraUserResult {

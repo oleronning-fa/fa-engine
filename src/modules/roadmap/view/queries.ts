@@ -39,6 +39,9 @@ export interface ItemRow {
   completedAt: Date | null;
   colorLabel: string | null;
   sortOrder: number | null;
+  jiraAssigneeName: string | null;
+  jiraEstimateSeconds: number | null;
+  jiraSpentSeconds: number | null;
 }
 
 const baseSelect = {
@@ -64,13 +67,18 @@ const baseSelect = {
   completedAt: roadmapItem.completedAt,
   colorLabel: roadmapItem.colorLabel,
   sortOrder: roadmapItem.sortOrder,
+  jiraAssigneeName: roadmapItem.jiraAssigneeName,
+  jiraEstimateSeconds: roadmapItem.jiraEstimateSeconds,
+  jiraSpentSeconds: roadmapItem.jiraSpentSeconds,
 };
 
 /**
  * Every list query joins the same two owner/coordinator aliases the same
  * way — factored out as a where-clause parameter instead of a builder
  * helper, since Drizzle's fluent types don't survive being passed through an
- * intermediate function.
+ * intermediate function. Every caller also gets the archivedAt filter for
+ * free (OC, 29 Sep: "Remove" on a Task previously did nothing visible —
+ * it set archived_at, but nothing here was excluding it).
  */
 async function selectItems(where: SQL | undefined) {
   return db
@@ -78,7 +86,7 @@ async function selectItems(where: SQL | undefined) {
     .from(roadmapItem)
     .leftJoin(owner, eq(roadmapItem.ownerId, owner.id))
     .leftJoin(coordinator, eq(roadmapItem.coordinatorId, coordinator.id))
-    .where(where)
+    .where(and(isNull(roadmapItem.archivedAt), where))
     .orderBy(desc(roadmapItem.updatedAt));
 }
 

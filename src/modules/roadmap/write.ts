@@ -210,10 +210,20 @@ export interface UpdateItemInput {
   assigneeIds?: string[];
   /** Epic only — one of `EPIC_LABEL_COLORS`. */
   colorLabel?: string | null;
+  /**
+   * Task/Bug/Research only — undefined (not null) means "the Epic edit form
+   * submitted this, leave it alone": Epic has no type/discipline/parentId
+   * inputs at all, so the API route only fills these when a Task form
+   * submitted (kind='task'), and `?? undefined` below skips the column
+   * entirely rather than nulling it out for an Epic.
+   */
+  type?: 'Task' | 'Bug' | 'Research';
+  discipline?: string | null;
+  parentId?: string | null;
   actorEmail?: string | null;
 }
 
-/** Full edit — used by the Epic (and, later, Task) detail page. Replaces assignees wholesale; logs a status_log row only when status actually changed. */
+/** Full edit — used by the Epic and Task/Bug/Research detail pages. Replaces assignees wholesale; logs a status_log row only when status actually changed. */
 export async function updateRoadmapItem(input: UpdateItemInput): Promise<void> {
   const actorId = await resolveActor(input.actorEmail);
 
@@ -237,6 +247,9 @@ export async function updateRoadmapItem(input: UpdateItemInput): Promise<void> {
         targetDate: input.targetDate || null,
         jiraKey: input.jiraKey?.trim() || null,
         colorLabel: input.colorLabel || null,
+        type: input.type ?? undefined,
+        discipline: input.type !== undefined ? input.discipline || null : undefined,
+        parentId: input.type !== undefined ? input.parentId || null : undefined,
         completedAt: input.status === 'Delivered' || input.status === 'Ferdig - arkivert' ? new Date() : undefined,
         updatedAt: new Date(),
       })
@@ -321,6 +334,72 @@ export async function archiveRoadmapItem(id: string, actorEmail?: string | null)
 /** Drag-and-drop reorder on the Epics list — one field, no status_log entry (not a status change). */
 export async function setSortOrder(id: string, sortOrder: number): Promise<void> {
   await db.update(roadmapItem).set({ sortOrder, updatedAt: new Date() }).where(eq(roadmapItem.id, id));
+}
+
+/**
+ * The four columns on the All items board, as the exact state each
+ * represents — kept in one place so a manual drag lands exactly where
+ * `inCol()` (src/pages/index.astro) will actually display it, not just
+ * near it. 'review' picks CR as the representative sub-status; the three
+ * real Jira values it covers (CR/FT/On QA) can't be told apart from a
+ * plain "dropped in this column" gesture.
+ */
+const BOARD_COLUMN_TARGETS: Record<string, { status: string; jiraSubstatus: string | null; backlogged: boolean }> = {
+  neste: { status: 'In Jira', jiraSubstatus: 'Todo', backlogged: false },
+  pabegynt: { status: 'In Jira', jiraSubstatus: 'In progress', backlogged: false },
+  review: { status: 'In Jira', jiraSubstatus: 'CR', backlogged: false },
+  done: { status: 'Delivered', jiraSubstatus: null, backlogged: false },
+};
+
+/**
+ * Drag a card to a different column on the All items board (OC, 29 Sep).
+ * Manual, local-only — same as every other quick action, never written to
+ * Jira. Worth knowing: if this item still has an active jiraKey, the next
+ * scheduled sync (every JIRA_SYNC_INTERVAL_MS) re-reads Jira's real current
+ * status and can move it right back — this is a nudge, not a pin.
+ */
+export async function moveBoardColumn(id: string, column: string, actorEmail?: string | null): Promise<void> {
+  const target = BOARD_COLUMN_TARGETS[column];
+  if (!target) throw new Error(`Unknown board column: ${column}`);
+
+  const actorId = await resolveActor(actorEmail);
+  await db.transaction(async (tx) => {
+    const [before] = await tx
+      .select({ status: roadmapItem.status, jiraSubstatus: roadmapItem.jiraSubstatus })
+      .from(roadmapItem)
+      .where(eq(roadmapItem.id, id))
+      .limit(1);
+    if (!before) throw new Error(`roadmap_item ${id} not found`);
+
+    await tx
+      .update(roadmapItem)
+      .set({
+        status: target.status,
+        jiraSubstatus: target.jiraSubstatus,
+        backlogged: target.backlogged,
+        completedAt: target.status === 'Delivered' ? new Date() : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(roadmapItem.id, id));
+
+    await tx.insert(roadmapStatusLog).values({
+      roadmapItemId: id,
+      fromStatus: before.status,
+      toStatus: target.status,
+      fromSubstatus: before.jiraSubstatus,
+      toSubstatus: target.jiraSubstatus,
+      actorId,
+      note: 'Moved on board (manual drag)',
+    });
+    await tx.insert(event).values({
+      actorId,
+      actorKind: actorId ? 'user' : 'system',
+      action: 'roadmap_item.board_moved',
+      entityType: 'roadmap_item',
+      entityId: id,
+      payload: { column },
+    });
+  });
 }
 
 /** One uploaded file, already written to `uploads/` by the caller — this just records it. */
@@ -411,7 +490,23 @@ export async function applyJiraSnapshot(itemId: string, snapshot: JiraSnapshot, 
     // a started task should land under Påbegynt automatically, not need a
     // separate "Move to Neste" click once Jira already shows progress).
     const isRealProgress = toStatus === 'Delivered' || ['In progress', 'CR', 'FT', 'On QA'].includes(toSubstatus ?? '');
+    // Our own type enum is only Task/Bug/Research (no native "Research" in
+    // Jira) — everything that isn't a real Jira Bug stays/becomes Task.
+    const inferredType = snapshot.issueTypeName === 'Bug' ? 'Bug' : 'Task';
     const changed = before.status !== toStatus || before.jiraSubstatus !== toSubstatus;
+
+    // Informational fields (OC, 29 Sep) are refreshed every pass regardless
+    // of whether status/substatus changed — Jira's assignee or logged time
+    // can move without the workflow status moving at all.
+    await tx
+      .update(roadmapItem)
+      .set({
+        type: inferredType,
+        jiraAssigneeName: snapshot.assigneeName,
+        jiraEstimateSeconds: snapshot.estimateSeconds,
+        jiraSpentSeconds: snapshot.spentSeconds,
+      })
+      .where(eq(roadmapItem.id, itemId));
 
     if (!changed) {
       return { action: 'unchanged', fromStatus: before.status, toStatus, fromSubstatus: before.jiraSubstatus, toSubstatus };
@@ -521,7 +616,7 @@ export async function createRoadmapItemFromJira(snapshot: JiraSnapshot, actorEma
   }
 
   const id = await createRoadmapItem({
-    type: 'Task',
+    type: snapshot.issueTypeName === 'Bug' ? 'Bug' : 'Task',
     title: snapshot.summary,
     status: 'In Jira',
     jiraKey: snapshot.key,
