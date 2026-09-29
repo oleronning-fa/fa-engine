@@ -1,8 +1,8 @@
 ---
 import RoadmapLayout from '../layouts/RoadmapLayout.astro';
 import { getAssigneesByItemIds, getEpics, getLatestCommentByItemIds, type EpicRow } from '../modules/roadmap/view/queries';
-import { avatarColor, epicStatusChip, fmtDateShort, initials } from '../modules/roadmap/view/render';
-import { areaLabel, EPIC_STATUSES, isAreaId } from '../core/codesets';
+import { avatarColor, epicStatusChip, firstName, fmtDateShort } from '../modules/roadmap/view/render';
+import { areaLabel, EPIC_STATUSES, isAreaId, labelColorHex } from '../core/codesets';
 
 const VIEWS = [
   { key: 'cards', label: 'Cards' },
@@ -44,14 +44,12 @@ function progressPct(epic: EpicRow): number | null {
         const assignees = assigneesByItem.get(epic.id) ?? [];
         const target = fmtDateShort(epic.targetDate) ?? epic.targetWeek;
         const latestComment = latestCommentByItem.get(epic.id);
+        const accent = labelColorHex(epic.colorLabel);
         return (
-          <div class="epic-card">
+          <div class="epic-card" style={accent ? `border-left:4px solid ${accent}` : undefined}>
             <div class="epic-card-head">
               <h4>
-                <a href={`/epics/${epic.id}`} class="epic-card-title-link">
-                  {epic.emoji && <span aria-hidden="true">{epic.emoji} </span>}
-                  {epic.title}
-                </a>
+                <a href={`/epics/${epic.id}`} class="epic-card-title-link">{epic.title}</a>
               </h4>
               <span class:list={['chip', status.class]}>{status.label}</span>
             </div>
@@ -71,13 +69,14 @@ function progressPct(epic: EpicRow): number | null {
               <span class="area-tag">{epic.area && isAreaId(epic.area) ? areaLabel(epic.area) : 'Flere områder'}</span>
               {epic.ownerName && <span class="area-tag" title="Owner">👤 {epic.ownerName}</span>}
               {target && <span class="area-tag" title="Estimated delivery">🗓 {target}</span>}
-              <div class="assignees">
-                {assignees.length === 0 && <span class="muted">—</span>}
+            </div>
+            {assignees.length > 0 && (
+              <div class="epic-people">
                 {assignees.map((name) => (
-                  <span class="dot" style={`background:${avatarColor(name)}`} title={name}>{initials(name)}</span>
+                  <span class="person-tag"><span class="person-dot" style={`background:${avatarColor(name)}`} />{firstName(name)}</span>
                 ))}
               </div>
-            </div>
+            )}
             {latestComment && (
               <div class="latest-comment">
                 <b>{latestComment.authorName}:</b>
@@ -114,10 +113,13 @@ function progressPct(epic: EpicRow): number | null {
         const pct = progressPct(epic);
         const assignees = assigneesByItem.get(epic.id) ?? [];
         const target = fmtDateShort(epic.targetDate) ?? epic.targetWeek;
+        const accent = labelColorHex(epic.colorLabel);
         return (
-          <div class="epic-list-row">
+          <div class="epic-list-row" draggable="true" data-id={epic.id} data-sort-order={epic.sortOrder ?? 0}>
+            <span class="drag-handle" title="Drag to reorder">⠿</span>
             <div class="epic-list-title">
-              <a href={`/epics/${epic.id}`}>{epic.emoji && `${epic.emoji} `}{epic.title}</a>
+              {accent && <span class="color-dot" style={`background:${accent}`} />}
+              <a href={`/epics/${epic.id}`}>{epic.title}</a>
             </div>
             <span class:list={['chip', status.class]}>{status.label}</span>
             <span class="epic-list-owner">{epic.ownerName ?? '—'}</span>
@@ -131,10 +133,9 @@ function progressPct(epic: EpicRow): number | null {
               <span class="muted" style="font-size:11px">No tasks</span>
             )}
             <div style="display:flex;align-items:center;gap:8px">
-              <div class="assignees">
-                {assignees.length === 0 && <span class="muted">—</span>}
+              <div class="epic-people">
                 {assignees.map((name) => (
-                  <span class="dot" style={`background:${avatarColor(name)}`} title={name}>{initials(name)}</span>
+                  <span class="person-tag"><span class="person-dot" style={`background:${avatarColor(name)}`} />{firstName(name)}</span>
                 ))}
               </div>
               {epic.status === 'Ikke påbegynt' && (
@@ -177,23 +178,25 @@ function progressPct(epic: EpicRow): number | null {
                   const pct = progressPct(epic);
                   const assignees = assigneesByItem.get(epic.id) ?? [];
                   const target = fmtDateShort(epic.targetDate) ?? epic.targetWeek;
+                  const accent = labelColorHex(epic.colorLabel);
                   return (
-                    <div class="epic-board-card">
+                    <div class="epic-board-card" style={accent ? `border-left:4px solid ${accent}` : undefined}>
                       <div class="epic-board-card-title">
-                        <a href={`/epics/${epic.id}`} class="epic-card-title-link">{epic.emoji && `${epic.emoji} `}{epic.title}</a>
+                        <a href={`/epics/${epic.id}`} class="epic-card-title-link">{epic.title}</a>
                       </div>
                       {epic.ownerName && <span class="area-tag" title="Owner">👤 {epic.ownerName}</span>}
                       {target && <div class="card-updated">🗓 {target}</div>}
+                      {assignees.length > 0 && (
+                        <div class="epic-people">
+                          {assignees.map((name) => (
+                            <span class="person-tag"><span class="person-dot" style={`background:${avatarColor(name)}`} />{firstName(name)}</span>
+                          ))}
+                        </div>
+                      )}
                       <div class="board-card-foot">
                         {pct !== null ? (
                           <span class="muted" style="font-size:11px">{epic.deliveredChildren}/{epic.totalChildren} · {pct}%</span>
                         ) : <span />}
-                        <div class="assignees">
-                          {assignees.length === 0 && <span class="muted">—</span>}
-                          {assignees.map((name) => (
-                            <span class="dot" style={`background:${avatarColor(name)}`} title={name}>{initials(name)}</span>
-                          ))}
-                        </div>
                       </div>
                       <div style="display:flex;gap:6px">
                         {epic.status === 'Ikke påbegynt' && (
@@ -223,3 +226,48 @@ function progressPct(epic: EpicRow): number | null {
     </div>
   )}
 </RoadmapLayout>
+
+<script>
+  // Drag-and-drop reorder — List view only (a no-op elsewhere, no .epics-list to find).
+  // Persists via POST /api/roadmap-items/:id/reorder, then reloads so every
+  // view reflects the server-confirmed order.
+  const list = document.querySelector('.epics-list');
+  if (list) {
+    let dragged: HTMLElement | null = null;
+
+    const neighborOrder = (el: Element | null, forward: boolean): number | null => {
+      while (el === dragged) el = forward ? (el as HTMLElement).nextElementSibling : (el as HTMLElement).previousElementSibling;
+      return el ? Number((el as HTMLElement).dataset.sortOrder) : null;
+    };
+
+    list.querySelectorAll<HTMLElement>('.epic-list-row').forEach((row) => {
+      row.addEventListener('dragstart', () => {
+        dragged = row;
+        row.classList.add('dragging');
+      });
+      row.addEventListener('dragend', () => row.classList.remove('dragging'));
+      row.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (row !== dragged) row.classList.add('drag-over');
+      });
+      row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+      row.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        row.classList.remove('drag-over');
+        if (!dragged || row === dragged) return;
+
+        const dropBefore = (e as DragEvent).clientY < row.getBoundingClientRect().top + row.offsetHeight / 2;
+        const before = dropBefore ? neighborOrder(row.previousElementSibling, false) : Number(row.dataset.sortOrder);
+        const after = dropBefore ? Number(row.dataset.sortOrder) : neighborOrder(row.nextElementSibling, true);
+        const newOrder = before === null ? after - 1000 : after === null ? before + 1000 : (before + after) / 2;
+
+        await fetch(`/api/roadmap-items/${dragged.dataset.id}/reorder`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ sortOrder: newOrder }),
+        });
+        location.reload();
+      });
+    });
+  }
+</script>

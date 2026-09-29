@@ -26,3 +26,8 @@ pnpm-debug.log*
 # committed. Root-anchored and named distinctly from src/modules/roadmap/import/
 # (the importer's CODE, which must NOT be ignored).
 /import-source/
+
+# Uploaded attachments (src/core/uploads.ts) — real files people attach to
+# epics, local disk only for now. Root-anchored, distinct from any /uploads
+# route under src/pages/api/.
+/uploads/

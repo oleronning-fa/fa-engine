@@ -32,13 +32,13 @@ export const POST: APIRoute = async ({ request, redirect, locals }) => {
       await createRoadmapItem({
         type: 'Epic',
         title: form.get('title') as string,
-        emoji: str(form.get('emoji')),
         description: str(form.get('description')),
         targetDate: str(form.get('targetDate')),
         status: 'Ikke påbegynt',
         size: 'Ongoing',
         ownerId,
-        assigneeIds: [...ids(form, 'assigneeIds'), ...newPeopleIds],
+        colorLabel: str(form.get('colorLabel')),
+        assigneeIds: ids(form, 'assigneeIds'),
         actorEmail,
       });
       return redirect('/epics', 303);

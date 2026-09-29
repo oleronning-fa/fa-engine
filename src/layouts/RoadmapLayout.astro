@@ -1,7 +1,7 @@
 ---
 import '@fontsource-variable/inter';
 import '../styles/roadmap.css';
-import { AREAS } from '../core/codesets';
+import { AREAS, EPIC_LABEL_COLORS } from '../core/codesets';
 import { getAllUsers, getEpicOptions } from '../modules/roadmap/view/queries';
 
 interface Props {
@@ -108,15 +108,9 @@ const epicOptions = await getEpicOptions();
           <button class="modal-close" type="button" data-close-dialog aria-label="Close">✕</button>
         </div>
         <div class="modal-body">
-          <div class="field-row">
-            <div class="field">
-              <label for="epTitle">Title</label>
-              <input type="text" id="epTitle" name="title" placeholder="e.g. Redpill to AWS" required />
-            </div>
-            <div class="field">
-              <label for="epEmoji">Emoji <span class="opt">(optional)</span></label>
-              <input type="text" id="epEmoji" name="emoji" placeholder="🚀" maxlength="4" />
-            </div>
+          <div class="field">
+            <label for="epTitle">Title</label>
+            <input type="text" id="epTitle" name="title" placeholder="e.g. Redpill to AWS" required />
           </div>
           <div class="field">
             <label for="epDesc">Description <span class="opt">(what, and why)</span></label>
@@ -128,10 +122,6 @@ const epicOptions = await getEpicOptions();
               {people.map((p) => <option value={p.id}>{p.name}</option>)}
             </select>
           </div>
-          <div class="field">
-            <label for="epNewPeople">New person? <span class="opt">(not in the list above — comma-separated, they'll be added)</span></label>
-            <input type="text" id="epNewPeople" name="newPeople" placeholder="e.g. Kari Nordmann" />
-          </div>
           <div class="field-row">
             <div class="field">
               <label for="epOwner">Owner <span class="opt">(optional — type a name)</span></label>
@@ -140,6 +130,20 @@ const epicOptions = await getEpicOptions();
             <div class="field">
               <label for="epTarget">Estimated delivery <span class="opt">(optional — most epics have none)</span></label>
               <input type="date" id="epTarget" name="targetDate" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Importance label <span class="opt">(optional)</span></label>
+            <div class="color-picker">
+              <label class="color-swatch-none" title="No label">
+                <input type="radio" name="colorLabel" value="" checked />
+                <span aria-hidden="true">✕</span>
+              </label>
+              {EPIC_LABEL_COLORS.map((c) => (
+                <label class="color-swatch" style={`--swatch-color:${c.hex}`} title={c.id}>
+                  <input type="radio" name="colorLabel" value={c.id} />
+                </label>
+              ))}
             </div>
           </div>
           <div class="field">

@@ -67,6 +67,23 @@ export type JiraSubstatus = (typeof JIRA_SUBSTATUSES)[number];
 export const PRIORITIES = ['Hotfix', 'High', 'Medium', 'Low'] as const;
 export type Priority = (typeof PRIORITIES)[number];
 
+/**
+ * A plain color flag for Epic importance (OC, 29 Sep) — separate from
+ * `priority`, which is a Task/Bug/Research field. No fixed meaning per
+ * color; it's a visual sort/flag the product team assigns themselves.
+ */
+export const EPIC_LABEL_COLORS = [
+  { id: 'red', hex: '#E5484D' },
+  { id: 'orange', hex: '#F76B15' },
+  { id: 'yellow', hex: '#FFB224' },
+  { id: 'green', hex: '#30A46C' },
+  { id: 'blue', hex: '#0091FF' },
+] as const;
+export type EpicLabelColor = (typeof EPIC_LABEL_COLORS)[number]['id'];
+export function labelColorHex(id: string | null): string | null {
+  return EPIC_LABEL_COLORS.find((c) => c.id === id)?.hex ?? null;
+}
+
 /** Optional t-shirt size. Never mandatory — hour estimates died at 0% fill. */
 export const SIZES = ['S', 'M', 'L', 'Ongoing'] as const;
 export type Size = (typeof SIZES)[number];
@@ -83,6 +100,8 @@ export const isTaskStatus = (v: string): v is TaskStatus => has(TASK_STATUSES, v
 export const isEpicStatus = (v: string): v is EpicStatus => has(EPIC_STATUSES, v);
 export const isPriority = (v: string): v is Priority => has(PRIORITIES, v);
 export const isSize = (v: string): v is Size => has(SIZES, v);
+export const isEpicLabelColor = (v: string): v is EpicLabelColor =>
+  EPIC_LABEL_COLORS.some((c) => c.id === v);
 
 /** Which status set applies, given an item type. */
 export function statusSetFor(type: RoadmapItemType): readonly RoadmapStatus[] {

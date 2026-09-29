@@ -4,7 +4,14 @@
  */
 import { aliasedTable, and, desc, eq, inArray, isNull, ne, sql, type SQL } from 'drizzle-orm';
 import { db } from '../../../core/db';
-import { appUser, roadmapComment, roadmapItem, roadmapItemAssignee, roadmapStatusLog } from '../../../core/schema';
+import {
+  appUser,
+  roadmapAttachment,
+  roadmapComment,
+  roadmapItem,
+  roadmapItemAssignee,
+  roadmapStatusLog,
+} from '../../../core/schema';
 
 const owner = aliasedTable(appUser, 'owner');
 const coordinator = aliasedTable(appUser, 'coordinator');
@@ -30,6 +37,8 @@ export interface ItemRow {
   targetWeek: string | null;
   updatedAt: Date;
   completedAt: Date | null;
+  colorLabel: string | null;
+  sortOrder: number | null;
 }
 
 const baseSelect = {
@@ -53,6 +62,8 @@ const baseSelect = {
   targetWeek: roadmapItem.targetWeek,
   updatedAt: roadmapItem.updatedAt,
   completedAt: roadmapItem.completedAt,
+  colorLabel: roadmapItem.colorLabel,
+  sortOrder: roadmapItem.sortOrder,
 };
 
 /**
@@ -104,7 +115,7 @@ export interface EpicRow extends ItemRow {
   deliveredChildren: number;
 }
 
-/** Epics with a computed progress bar — N of M child Task/Bug/Research delivered. */
+/** Epics with a computed progress bar — N of M child Task/Bug/Research delivered. Manual order (drag-and-drop on the List view), not alphabetical. */
 export async function getEpics(): Promise<EpicRow[]> {
   const rows = await db
     .select({ ...baseSelect, description: roadmapItem.description })
@@ -112,7 +123,7 @@ export async function getEpics(): Promise<EpicRow[]> {
     .leftJoin(owner, eq(roadmapItem.ownerId, owner.id))
     .leftJoin(coordinator, eq(roadmapItem.coordinatorId, coordinator.id))
     .where(and(eq(roadmapItem.type, 'Epic'), isNull(roadmapItem.archivedAt)))
-    .orderBy(roadmapItem.title);
+    .orderBy(sql`${roadmapItem.sortOrder} asc nulls last`, roadmapItem.title);
 
   const epicIds = rows.map((r) => r.id);
   if (epicIds.length === 0) return [];
@@ -274,4 +285,27 @@ export async function getLatestCommentByItemIds(ids: string[]): Promise<Map<stri
     if (!map.has(r.itemId)) map.set(r.itemId, r); // first hit per item = newest, thanks to the orderBy
   }
   return map;
+}
+
+export interface AttachmentRow {
+  id: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: Date;
+}
+
+/** Files/images attached to one item, newest first. */
+export async function getAttachmentsForItem(itemId: string): Promise<AttachmentRow[]> {
+  return db
+    .select({
+      id: roadmapAttachment.id,
+      filename: roadmapAttachment.filename,
+      mimeType: roadmapAttachment.mimeType,
+      sizeBytes: roadmapAttachment.sizeBytes,
+      createdAt: roadmapAttachment.createdAt,
+    })
+    .from(roadmapAttachment)
+    .where(eq(roadmapAttachment.roadmapItemId, itemId))
+    .orderBy(desc(roadmapAttachment.createdAt));
 }

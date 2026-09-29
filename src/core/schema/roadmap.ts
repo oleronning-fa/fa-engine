@@ -3,7 +3,9 @@ import {
   bigserial,
   boolean,
   date,
+  doublePrecision,
   index,
+  integer,
   jsonb,
   pgTable,
   primaryKey,
@@ -84,6 +86,15 @@ export const roadmapItem = pgTable(
      * cascades. Null = visible, as normal.
      */
     archivedAt: timestamp('archived_at', { withTimezone: true }),
+    /** One of `EPIC_LABEL_COLORS` — a plain color flag for importance, Epic only (OC, 29 Sep). Not tied to `priority`. */
+    colorLabel: text('color_label'),
+    /**
+     * Manual drag-and-drop rank on the Epics list (OC, 29 Sep) — lower sorts
+     * first. Fractional so a drop between two rows can average their values
+     * without renumbering the whole list. Null only until the one-time
+     * backfill migration runs; every row gets a real value after that.
+     */
+    sortOrder: doublePrecision('sort_order'),
     /** Real parent relation. A Task usually points at an Epic; a sub-task at another Task. */
     parentId: uuid('parent_id').references((): AnyPgColumn => roadmapItem.id),
     /** Idea-bank attribution — follows the item all the way to delivery (idebank §3). */
@@ -198,8 +209,33 @@ export const roadmapComment = pgTable(
   (t) => [index('roadmap_comment_item_idx').on(t.roadmapItemId)],
 );
 
+/**
+ * Files and images attached to an item (Epic, so far — OC, 29 Sep). Stored on
+ * local disk under `uploads/`, outside `src/` and `public/` since this is
+ * runtime user data, not a build asset; `storagePath` is the filename on
+ * disk, served back through `/api/attachments/[id]`, never a raw static path.
+ */
+export const roadmapAttachment = pgTable(
+  'roadmap_attachment',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    roadmapItemId: uuid('roadmap_item_id')
+      .notNull()
+      .references(() => roadmapItem.id, { onDelete: 'cascade' }),
+    filename: text('filename').notNull(),
+    mimeType: text('mime_type').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    /** Filename on disk under `uploads/` — random, never the original name (avoids path traversal / collisions). */
+    storagePath: text('storage_path').notNull(),
+    uploadedBy: uuid('uploaded_by').references(() => appUser.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('roadmap_attachment_item_idx').on(t.roadmapItemId)],
+);
+
 export type RoadmapItem = typeof roadmapItem.$inferSelect;
 export type NewRoadmapItem = typeof roadmapItem.$inferInsert;
 export type RoadmapSource = typeof roadmapSource.$inferSelect;
 export type RoadmapStatusLogEntry = typeof roadmapStatusLog.$inferSelect;
 export type RoadmapComment = typeof roadmapComment.$inferSelect;
+export type RoadmapAttachment = typeof roadmapAttachment.$inferSelect;

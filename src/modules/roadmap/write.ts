@@ -5,8 +5,16 @@
  * the rule in `src/core/AGENTS.md`: every mutation is logged, from day one.
  */
 import { db } from '../../core/db';
-import { appUser, event, roadmapComment, roadmapItem, roadmapItemAssignee, roadmapStatusLog } from '../../core/schema';
-import { eq } from 'drizzle-orm';
+import {
+  appUser,
+  event,
+  roadmapAttachment,
+  roadmapComment,
+  roadmapItem,
+  roadmapItemAssignee,
+  roadmapStatusLog,
+} from '../../core/schema';
+import { desc, eq, sql } from 'drizzle-orm';
 import { mapSubstatus, type JiraSnapshot } from '../../core/jira';
 
 export interface CreateItemInput {
@@ -26,6 +34,8 @@ export interface CreateItemInput {
   jiraKey?: string | null;
   parentId?: string | null;
   assigneeIds?: string[];
+  /** Epic only — one of `EPIC_LABEL_COLORS`. */
+  colorLabel?: string | null;
   /** The signed-in JB user's email, if any — resolved to an app_user for attribution when it matches. */
   actorEmail?: string | null;
 }
@@ -72,6 +82,16 @@ export async function createRoadmapItem(input: CreateItemInput): Promise<string>
   const actorId = await resolveActor(input.actorEmail);
 
   const id = await db.transaction(async (tx) => {
+    // Manual drag-and-drop rank (Epics list) — appended at the end, well
+    // clear of the last row, so a fresh Epic doesn't need re-numbering.
+    let sortOrder: number | null = null;
+    if (input.type === 'Epic') {
+      const [{ max }] = await tx.execute<{ max: number | null }>(
+        sql`SELECT max(sort_order) AS max FROM roadmap_item WHERE type = 'Epic'`,
+      );
+      sortOrder = (max ?? 0) + 1000;
+    }
+
     const [row] = await tx
       .insert(roadmapItem)
       .values({
@@ -90,6 +110,8 @@ export async function createRoadmapItem(input: CreateItemInput): Promise<string>
         targetDate: input.targetDate || null,
         jiraKey: input.jiraKey?.trim() || null,
         parentId: input.parentId || null,
+        colorLabel: input.colorLabel || null,
+        sortOrder,
         createdBy: actorId,
       })
       .returning({ id: roadmapItem.id });
@@ -136,6 +158,8 @@ export interface UpdateItemInput {
   targetDate?: string | null;
   jiraKey?: string | null;
   assigneeIds?: string[];
+  /** Epic only — one of `EPIC_LABEL_COLORS`. */
+  colorLabel?: string | null;
   actorEmail?: string | null;
 }
 
@@ -162,6 +186,7 @@ export async function updateRoadmapItem(input: UpdateItemInput): Promise<void> {
         size: input.size || null,
         targetDate: input.targetDate || null,
         jiraKey: input.jiraKey?.trim() || null,
+        colorLabel: input.colorLabel || null,
         completedAt: input.status === 'Delivered' || input.status === 'Ferdig - arkivert' ? new Date() : undefined,
         updatedAt: new Date(),
       })
@@ -241,6 +266,61 @@ export async function archiveRoadmapItem(id: string, actorEmail?: string | null)
       payload: {},
     });
   });
+}
+
+/** Drag-and-drop reorder on the Epics list — one field, no status_log entry (not a status change). */
+export async function setSortOrder(id: string, sortOrder: number): Promise<void> {
+  await db.update(roadmapItem).set({ sortOrder, updatedAt: new Date() }).where(eq(roadmapItem.id, id));
+}
+
+/** One uploaded file, already written to `uploads/` by the caller — this just records it. */
+export async function addAttachment(input: {
+  roadmapItemId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  storagePath: string;
+  actorEmail?: string | null;
+}): Promise<void> {
+  const actorId = await resolveActor(input.actorEmail);
+  await db.transaction(async (tx) => {
+    await tx.insert(roadmapAttachment).values({
+      roadmapItemId: input.roadmapItemId,
+      filename: input.filename,
+      mimeType: input.mimeType,
+      sizeBytes: input.sizeBytes,
+      storagePath: input.storagePath,
+      uploadedBy: actorId,
+    });
+    await tx.insert(event).values({
+      actorId,
+      actorKind: actorId ? 'user' : 'system',
+      action: 'roadmap_item.attachment_added',
+      entityType: 'roadmap_item',
+      entityId: input.roadmapItemId,
+      payload: { filename: input.filename },
+    });
+  });
+}
+
+/** Deletes the DB row and returns enough of it for the caller to also remove the file on disk and redirect — null if it never existed. */
+export async function deleteAttachment(
+  id: string,
+  actorEmail?: string | null,
+): Promise<{ storagePath: string; roadmapItemId: string } | null> {
+  const actorId = await resolveActor(actorEmail);
+  const [deleted] = await db.delete(roadmapAttachment).where(eq(roadmapAttachment.id, id)).returning();
+  if (!deleted) return null;
+
+  await db.insert(event).values({
+    actorId,
+    actorKind: actorId ? 'user' : 'system',
+    action: 'roadmap_item.attachment_removed',
+    entityType: 'roadmap_item',
+    entityId: deleted.roadmapItemId,
+    payload: { filename: deleted.filename },
+  });
+  return { storagePath: deleted.storagePath, roadmapItemId: deleted.roadmapItemId };
 }
 
 export type JiraSyncAction = 'delivered' | 'updated' | 'unchanged' | 'skipped_subtask';

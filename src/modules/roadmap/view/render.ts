@@ -13,6 +13,11 @@ export function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+/** "Ole Christian Rønning" → "Ole" — for tags where the full name is too wide but initials read as cryptic. */
+export function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] ?? name;
+}
+
 /** Deterministic avatar colour from a name — same person, same colour, every render. */
 const AVATAR_COLORS = ['#0373E3', '#025CB6', '#8C46CE', '#F77222', '#14985E', '#525C65', '#C65815'];
 export function avatarColor(name: string): string {

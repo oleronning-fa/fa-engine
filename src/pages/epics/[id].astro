@@ -1,7 +1,13 @@
 ---
 import RoadmapLayout from '../../layouts/RoadmapLayout.astro';
-import { getAllUsers, getAssigneeIdsForItem, getCommentsForItem, getItemById } from '../../modules/roadmap/view/queries';
-import { AREAS, EPIC_STATUSES } from '../../core/codesets';
+import {
+  getAllUsers,
+  getAssigneeIdsForItem,
+  getAttachmentsForItem,
+  getCommentsForItem,
+  getItemById,
+} from '../../modules/roadmap/view/queries';
+import { AREAS, EPIC_LABEL_COLORS, EPIC_STATUSES } from '../../core/codesets';
 import { fmtDateShort } from '../../modules/roadmap/view/render';
 
 const { id } = Astro.params;
@@ -13,20 +19,25 @@ if (!epic || epic.type !== 'Epic') return Astro.redirect('/epics', 303);
 const people = await getAllUsers();
 const assigneeIds = new Set(await getAssigneeIdsForItem(id));
 const comments = await getCommentsForItem(id);
+const attachments = await getAttachmentsForItem(id);
+const redirectTo = `/epics/${id}`;
+
+function fmtSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+function isImage(mimeType: string): boolean {
+  return mimeType.startsWith('image/');
+}
 ---
 <RoadmapLayout title={epic.title} active="epics">
   <a href="/epics" class="area-tag" style="display:inline-block;margin-bottom:14px">&larr; Back to Epics</a>
 
   <form method="POST" action={`/api/roadmap-items/${epic.id}`} style="max-width:640px;display:flex;flex-direction:column;gap:16px">
-    <div class="field-row">
-      <div class="field">
-        <label for="title">Title</label>
-        <input type="text" id="title" name="title" value={epic.title} required />
-      </div>
-      <div class="field">
-        <label for="emoji">Emoji <span class="opt">(optional)</span></label>
-        <input type="text" id="emoji" name="emoji" value={epic.emoji ?? ''} maxlength="4" />
-      </div>
+    <div class="field">
+      <label for="title">Title</label>
+      <input type="text" id="title" name="title" value={epic.title} required />
     </div>
 
     <div class="field">
@@ -64,14 +75,24 @@ const comments = await getCommentsForItem(id);
       </select>
     </div>
     <div class="field">
+      <label>Importance label <span class="opt">(optional)</span></label>
+      <div class="color-picker">
+        <label class="color-swatch-none" title="No label">
+          <input type="radio" name="colorLabel" value="" checked={!epic.colorLabel} />
+          <span aria-hidden="true">✕</span>
+        </label>
+        {EPIC_LABEL_COLORS.map((c) => (
+          <label class="color-swatch" style={`--swatch-color:${c.hex}`} title={c.id}>
+            <input type="radio" name="colorLabel" value={c.id} checked={epic.colorLabel === c.id} />
+          </label>
+        ))}
+      </div>
+    </div>
+    <div class="field">
       <label for="assigneeIds">Team</label>
       <select id="assigneeIds" name="assigneeIds" multiple>
         {people.map((p) => <option value={p.id} selected={assigneeIds.has(p.id)}>{p.name}</option>)}
       </select>
-    </div>
-    <div class="field">
-      <label for="newPeople">New person? <span class="opt">(not in the list above — comma-separated, they'll be added)</span></label>
-      <input type="text" id="newPeople" name="newPeople" placeholder="e.g. Kari Nordmann" />
     </div>
 
     <div class="section-divider"><span>Tracking</span></div>
@@ -91,6 +112,37 @@ const comments = await getCommentsForItem(id);
       <button class="btn btn-primary" type="submit">Save</button>
     </div>
   </form>
+
+  <div class="section-divider" style="max-width:640px;margin-top:28px"><span>Attachments</span></div>
+  <div style="max-width:640px">
+    <form method="POST" action={`/api/roadmap-items/${epic.id}/attachments`} enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;margin:12px 0 16px">
+      <input type="file" name="file" required />
+      <button class="btn btn-primary btn-sm" type="submit">Upload</button>
+    </form>
+
+    {attachments.length === 0 && <p class="muted" style="font-size:12.5px">No files yet — documents and images both work.</p>}
+    <div class="attachment-list">
+      {attachments.map((a) => (
+        <div class="attachment-item">
+          {isImage(a.mimeType) ? (
+            <a href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer" class="attachment-thumb">
+              <img src={`/api/attachments/${a.id}`} alt={a.filename} />
+            </a>
+          ) : (
+            <a href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer" class="attachment-thumb attachment-file">📄</a>
+          )}
+          <div class="attachment-meta">
+            <a href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer">{a.filename}</a>
+            <span class="muted">{fmtSize(a.sizeBytes)} · {fmtDateShort(a.createdAt)}</span>
+          </div>
+          <form method="POST" action={`/api/attachments/${a.id}/delete`} data-confirm={`Remove "${a.filename}"? This can't be undone.`}>
+            <input type="hidden" name="redirectTo" value={redirectTo} />
+            <button class="card-quick-status card-quick-remove btn-sm" type="submit">🗑</button>
+          </form>
+        </div>
+      ))}
+    </div>
+  </div>
 
   <div class="section-divider" style="max-width:640px;margin-top:28px"><span>Comments</span></div>
   <div style="max-width:640px">
