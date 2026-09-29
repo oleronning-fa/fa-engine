@@ -105,21 +105,26 @@ const KNOWN_PROJECT_PREFIXES = ['FCK', 'FADT', 'FIB', 'FAPPS'];
  * title. `/rest/api/3/search` (the older, unscoped search) was removed in
  * 2024 in favour of `/rest/api/3/search/jql`, used here.
  *
- * A full key ("FCK-3172") matches exactly; a bare number tries every known
- * project prefix; anything else is a free-text match against the summary.
+ * A full key ("FCK-3172") matches exactly, from any project — someone might
+ * legitimately paste a key outside the four known ones. A bare number tries
+ * only those four (there's no project to scope to otherwise). Free text is
+ * scoped to them too: `startsiden.atlassian.net` hosts many unrelated
+ * teams' projects, and an unscoped text search buries this team's own
+ * results under everyone else's.
  */
 export async function searchJiraIssues(query: string, creds: JiraCredentials): Promise<JiraIssueResult[]> {
   const q = query.trim();
   if (q.length < 2) return [];
 
   const escaped = q.replace(/"/g, '\\"');
+  const projectScope = `project in (${KNOWN_PROJECT_PREFIXES.join(',')})`;
   let jql: string;
   if (/^[a-zA-Z]+-\d+$/.test(q)) {
     jql = `key = "${escaped.toUpperCase()}"`;
   } else if (/^\d+$/.test(q)) {
     jql = `key in (${KNOWN_PROJECT_PREFIXES.map((p) => `"${p}-${escaped}"`).join(',')})`;
   } else {
-    jql = `text ~ "${escaped}*"`;
+    jql = `${projectScope} AND text ~ "${escaped}*"`;
   }
 
   const url = `${JIRA_BASE}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=10&fields=summary`;
