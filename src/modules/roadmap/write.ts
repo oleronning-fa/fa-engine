@@ -14,7 +14,7 @@ import {
   roadmapItemAssignee,
   roadmapStatusLog,
 } from '../../core/schema';
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { mapSubstatus, type JiraSnapshot } from '../../core/jira';
 
 export interface CreateItemInput {
@@ -329,6 +329,31 @@ export async function archiveRoadmapItem(id: string, actorEmail?: string | null)
       payload: {},
     });
   });
+}
+
+/**
+ * Bulk "Remove" for the whole Idea bank in one go (OC, 30 Sep) — same soft
+ * delete as a single item, just looped: nothing is dropped, nothing
+ * cascades, every row still gets its own event. Returns what was archived
+ * so the caller (the one-time admin endpoint) can report back exactly what
+ * happened rather than a bare count.
+ */
+export async function archiveAllIdeaBankItems(actorEmail?: string | null): Promise<{ id: string; title: string }[]> {
+  const rows = await db
+    .select({ id: roadmapItem.id, title: roadmapItem.title })
+    .from(roadmapItem)
+    .where(
+      and(
+        ne(roadmapItem.type, 'Epic'),
+        inArray(roadmapItem.status, ['Idea', 'Under review', 'Prioritized']),
+        isNull(roadmapItem.archivedAt),
+      ),
+    );
+
+  for (const row of rows) {
+    await archiveRoadmapItem(row.id, actorEmail);
+  }
+  return rows;
 }
 
 /** Drag-and-drop reorder on the Epics list — one field, no status_log entry (not a status change). */
