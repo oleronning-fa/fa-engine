@@ -1,0 +1,214 @@
+---
+import RoadmapLayout from '../../layouts/RoadmapLayout.astro';
+import MilestoneTimeline from '../../components/MilestoneTimeline.astro';
+import JiraPeoplePicker from '../../components/JiraPeoplePicker.astro';
+import {
+  getAllUsers,
+  getAssigneeIdsForItem,
+  getAttachmentsForItem,
+  getCommentsForItem,
+  getItemById,
+  getMilestonesByItemIds,
+} from '../../modules/roadmap/view/queries';
+import { AREAS, EPIC_LABEL_COLORS, IDEA_OWNER_NAMES, MILESTONES } from '../../core/codesets';
+import { fmtDateShort } from '../../modules/roadmap/view/render';
+
+const IDEA_STATUSES = ['Idea', 'Under review', 'Prioritized'];
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/idea-bank', 303);
+
+const idea = await getItemById(id);
+if (!idea) return Astro.redirect('/idea-bank', 303);
+if (idea.type === 'Epic') return Astro.redirect(`/epics/${id}`, 303);
+if (!IDEA_STATUSES.includes(idea.status)) return Astro.redirect(`/tasks/${id}`, 303);
+
+const people = await getAllUsers();
+// The Hegnar owners — plus the current owner, so an older idea doesn't lose theirs on save.
+const ownerOptions = people.filter((p) => (IDEA_OWNER_NAMES as readonly string[]).includes(p.name) || p.id === idea.ownerId);
+const assigneeIds = new Set(await getAssigneeIdsForItem(id));
+const milestones = (await getMilestonesByItemIds([id])).get(id) ?? [];
+const milestoneDates = new Map(milestones.map((m) => [m.key, m.date]));
+const comments = await getCommentsForItem(id);
+const attachments = await getAttachmentsForItem(id);
+const redirectTo = `/ideas/${id}`;
+
+function fmtSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+function isImage(mimeType: string): boolean {
+  return mimeType.startsWith('image/');
+}
+---
+<RoadmapLayout title={idea.title} active="ideas">
+  <a href="/idea-bank" class="area-tag" style="display:inline-block;margin-bottom:14px">&larr; Back to Idea bank</a>
+
+  {milestones.length > 0 && (
+    <div class="timeline-section"><MilestoneTimeline milestones={milestones} /></div>
+  )}
+
+  <form method="POST" action={`/api/roadmap-items/${idea.id}`} style="max-width:640px;display:flex;flex-direction:column;gap:16px">
+    <input type="hidden" name="kind" value="idea" />
+    <input type="hidden" name="notes" value={idea.notes ?? ''} />
+    <input type="hidden" name="priority" value={idea.priority ?? ''} />
+    <input type="hidden" name="size" value={idea.size ?? ''} />
+    <input type="hidden" name="emoji" value={idea.emoji ?? ''} />
+    <div class="field">
+      <label for="title">Title</label>
+      <input type="text" id="title" name="title" value={idea.title} required />
+    </div>
+
+    <div class="field">
+      <label for="description">Description</label>
+      <textarea id="description" name="description">{idea.description ?? ''}</textarea>
+    </div>
+
+    <div class="section-divider"><span>Placement</span></div>
+    <div class="field">
+      <label for="area">Area <span class="opt">(optional)</span></label>
+      <select id="area" name="area">
+        <option value="">Not set</option>
+        {AREAS.map((a) => <option value={a.id} selected={a.id === idea.area}>{a.label}</option>)}
+      </select>
+    </div>
+
+    <div class="section-divider"><span>Ownership &amp; status</span></div>
+    <div class="field-row">
+      <div class="field">
+        <label for="ownerId">Owner</label>
+        <select id="ownerId" name="ownerId" required>
+          <option value="">Choose an owner…</option>
+          {ownerOptions.map((p) => <option value={p.id} selected={p.id === idea.ownerId}>{p.name}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="coordinatorId">Coordinator <span class="opt">(Profico)</span></label>
+        <select id="coordinatorId" name="coordinatorId">
+          <option value="">Not set</option>
+          {people.map((p) => <option value={p.id} selected={p.id === idea.coordinatorId}>{p.name}</option>)}
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="status">Status</label>
+      <select id="status" name="status">
+        {IDEA_STATUSES.map((s) => <option selected={s === idea.status}>{s}</option>)}
+      </select>
+    </div>
+    <div class="field">
+      <label>Importance label <span class="opt">(optional)</span></label>
+      <div class="color-picker">
+        <label class="color-swatch-none" title="No label">
+          <input type="radio" name="colorLabel" value="" checked={!idea.colorLabel} />
+          <span aria-hidden="true">✕</span>
+        </label>
+        {EPIC_LABEL_COLORS.map((c) => (
+          <label class="color-swatch" style={`--swatch-color:${c.hex}`} title={c.id}>
+            <input type="radio" name="colorLabel" value={c.id} checked={idea.colorLabel === c.id} />
+          </label>
+        ))}
+      </div>
+    </div>
+    <div class="field">
+      <label for="assigneeIds">Team</label>
+      <select id="assigneeIds" name="assigneeIds" multiple>
+        {people.map((p) => <option value={p.id} selected={assigneeIds.has(p.id)}>{p.name}</option>)}
+      </select>
+    </div>
+    <JiraPeoplePicker id="editJira" />
+
+    <div class="section-divider"><span>Timeline</span></div>
+    <div class="help">Add the milestones that apply — leave the rest blank. They show as a timeline here and on the idea's card.</div>
+    <div class="milestone-fields">
+      {MILESTONES.map((m) => (
+        <div class="field">
+          <label for={`milestone_${m.id}`}>{m.label}</label>
+          <input type="date" id={`milestone_${m.id}`} name={`milestone_${m.id}`} value={milestoneDates.get(m.id) ?? ''} />
+        </div>
+      ))}
+    </div>
+
+    <div class="section-divider"><span>Tracking</span></div>
+    <div class="field-row">
+      <div class="field">
+        <label for="targetDate">Want to be released by <span class="opt">(optional)</span></label>
+        <input type="date" id="targetDate" name="targetDate" value={idea.targetDate ?? ''} />
+      </div>
+      <div class="field">
+        <label for="jiraKey">Jira key <span class="opt">(optional)</span></label>
+        <input type="text" id="jiraKey" name="jiraKey" value={idea.jiraKey ?? ''} placeholder="e.g. FCK-3172" />
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:8px;border-top:1px solid var(--border)">
+      <a href="/idea-bank" class="btn btn-ghost">Cancel</a>
+      <button class="btn btn-primary" type="submit">Save</button>
+    </div>
+  </form>
+
+  <div class="section-divider" style="max-width:640px;margin-top:28px"><span>Attachments</span></div>
+  <div style="max-width:640px">
+    <form method="POST" action={`/api/roadmap-items/${idea.id}/attachments`} enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;margin:12px 0 16px">
+      <input type="hidden" name="redirectTo" value={redirectTo} />
+      <input type="file" name="file" required />
+      <button class="btn btn-primary btn-sm" type="submit">Upload</button>
+    </form>
+
+    {attachments.length === 0 && <p class="muted" style="font-size:12.5px">No files yet — documents and images both work.</p>}
+    <div class="attachment-list">
+      {attachments.map((a) => (
+        <div class="attachment-item">
+          {isImage(a.mimeType) ? (
+            <a href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer" class="attachment-thumb">
+              <img src={`/api/attachments/${a.id}`} alt={a.filename} />
+            </a>
+          ) : (
+            <a href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer" class="attachment-thumb attachment-file">📄</a>
+          )}
+          <div class="attachment-meta">
+            <a href={`/api/attachments/${a.id}`} target="_blank" rel="noopener noreferrer">{a.filename}</a>
+            <span class="muted">{fmtSize(a.sizeBytes)} · {fmtDateShort(a.createdAt)}</span>
+          </div>
+          <form method="POST" action={`/api/attachments/${a.id}/delete`} data-confirm={`Remove "${a.filename}"? This can't be undone.`}>
+            <input type="hidden" name="redirectTo" value={redirectTo} />
+            <button class="card-quick-status card-quick-remove btn-sm" type="submit">🗑</button>
+          </form>
+        </div>
+      ))}
+    </div>
+  </div>
+
+  <div class="section-divider" style="max-width:640px;margin-top:28px"><span>Comments</span></div>
+  <div style="max-width:640px">
+    <form method="POST" action={`/api/roadmap-items/${idea.id}/comments`} style="display:flex;flex-direction:column;gap:8px;margin:12px 0 16px">
+      <input type="hidden" name="redirectTo" value={redirectTo} />
+      <div class="field-row">
+        <div class="field">
+          <label for="authorId">Posting as</label>
+          <select id="authorId" name="authorId" required>
+            <option value="">Choose who you are…</option>
+            {people.map((p) => <option value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <textarea name="body" placeholder="A short progress note…" required></textarea>
+      </div>
+      <div style="display:flex;justify-content:flex-end">
+        <button class="btn btn-primary btn-sm" type="submit">Add comment</button>
+      </div>
+    </form>
+
+    {comments.length === 0 && <p class="muted" style="font-size:12.5px">No comments yet.</p>}
+    {comments.map((c) => (
+      <div class="comment-item">
+        <div class="who-when">
+          <b>{c.authorName}</b>
+          <span>{fmtDateShort(c.createdAt)}</span>
+        </div>
+        <div class="comment-text">{c.body}</div>
+      </div>
+    ))}
+  </div>
+</RoadmapLayout>

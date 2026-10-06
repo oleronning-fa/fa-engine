@@ -11,6 +11,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { theme } from './signal';
@@ -236,6 +237,23 @@ export const roadmapAttachment = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('roadmap_attachment_item_idx').on(t.roadmapItemId)],
+);
+
+/**
+ * Idea timeline — one row per milestone that has a date (OC, 2 Oct). `key` is
+ * one of `MILESTONES`; a milestone with no date simply has no row.
+ */
+export const roadmapMilestone = pgTable(
+  'roadmap_milestone',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    roadmapItemId: uuid('roadmap_item_id')
+      .notNull()
+      .references(() => roadmapItem.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    date: date('date').notNull(),
+  },
+  (t) => [uniqueIndex('roadmap_milestone_item_key_idx').on(t.roadmapItemId, t.key)],
 );
 
 export type RoadmapItem = typeof roadmapItem.$inferSelect;

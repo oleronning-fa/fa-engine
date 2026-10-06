@@ -4,12 +4,14 @@
  */
 import { aliasedTable, and, desc, eq, inArray, isNull, ne, sql, type SQL } from 'drizzle-orm';
 import { db } from '../../../core/db';
+import { MILESTONES } from '../../../core/codesets';
 import {
   appUser,
   roadmapAttachment,
   roadmapComment,
   roadmapItem,
   roadmapItemAssignee,
+  roadmapMilestone,
   roadmapStatusLog,
 } from '../../../core/schema';
 
@@ -102,6 +104,29 @@ export async function getAssigneesByItemIds(ids: string[]): Promise<Map<string, 
   for (const r of rows) {
     const list = map.get(r.itemId) ?? [];
     list.push(r.name);
+    map.set(r.itemId, list);
+  }
+  return map;
+}
+
+export interface MilestoneRow {
+  key: string;
+  date: string;
+}
+
+/** Idea timeline milestones for a batch of items, each list in `MILESTONES` order — one query, not N. */
+export async function getMilestonesByItemIds(ids: string[]): Promise<Map<string, MilestoneRow[]>> {
+  const map = new Map<string, MilestoneRow[]>();
+  if (ids.length === 0) return map;
+  const rows = await db
+    .select({ itemId: roadmapMilestone.roadmapItemId, key: roadmapMilestone.key, date: roadmapMilestone.date })
+    .from(roadmapMilestone)
+    .where(inArray(roadmapMilestone.roadmapItemId, ids));
+  const order = MILESTONES.map((m) => m.id as string);
+  rows.sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
+  for (const r of rows) {
+    const list = map.get(r.itemId) ?? [];
+    list.push({ key: r.key, date: r.date });
     map.set(r.itemId, list);
   }
   return map;

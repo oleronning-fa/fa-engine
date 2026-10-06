@@ -6,6 +6,12 @@ import path from 'node:path';
 import { MAX_ATTACHMENT_BYTES, safeExt, UPLOAD_DIR } from '../../../../core/uploads';
 import { addAttachment } from '../../../../modules/roadmap/write';
 
+/** Same-site path only — default to the Epic page, which these forms were built for. */
+function backTo(form: FormData, id: string): string {
+  const to = form.get('redirectTo');
+  return typeof to === 'string' && to.startsWith('/') && !to.startsWith('//') ? to : `/epics/${id}`;
+}
+
 export const POST: APIRoute = async ({ params, request, redirect, locals }) => {
   const id = params.id;
   if (!id) return new Response('Missing id', { status: 400 });
@@ -13,7 +19,7 @@ export const POST: APIRoute = async ({ params, request, redirect, locals }) => {
   const form = await request.formData();
   const file = form.get('file');
   if (!(file instanceof File) || file.size === 0) {
-    return redirect(`/epics/${id}`, 303);
+    return redirect(backTo(form, id), 303);
   }
   if (file.size > MAX_ATTACHMENT_BYTES) {
     return new Response(`File too large — max ${MAX_ATTACHMENT_BYTES / (1024 * 1024)}MB.`, { status: 413 });
@@ -32,7 +38,7 @@ export const POST: APIRoute = async ({ params, request, redirect, locals }) => {
       storagePath,
       actorEmail: locals.user?.email ?? null,
     });
-    return redirect(`/epics/${id}`, 303);
+    return redirect(backTo(form, id), 303);
   } catch (err) {
     console.error('[roadmap-items/attachments] upload failed', err);
     return new Response('Upload failed — please try again.', { status: 500 });

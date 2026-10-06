@@ -1,10 +1,14 @@
 ---
+import MilestoneTimeline from '../components/MilestoneTimeline.astro';
 import RoadmapLayout from '../layouts/RoadmapLayout.astro';
-import { getIdeaBankItems, type ItemRow } from '../modules/roadmap/view/queries';
-import { areaLabel, isAreaId } from '../core/codesets';
-import { fmtDateShort } from '../modules/roadmap/view/render';
+import { getAssigneesByItemIds, getMilestonesByItemIds, getIdeaBankItems, getLatestCommentByItemIds, type ItemRow } from '../modules/roadmap/view/queries';
+import { areaLabel, isAreaId, labelColorHex } from '../core/codesets';
+import { avatarColor, firstName, fmtDateShort } from '../modules/roadmap/view/render';
 
 const items = await getIdeaBankItems();
+const assigneesByItem = await getAssigneesByItemIds(items.map((i) => i.id));
+const latestCommentByItem = await getLatestCommentByItemIds(items.map((i) => i.id));
+const milestonesByItem = await getMilestonesByItemIds(items.map((i) => i.id));
 const GROUPS = ['Idea', 'Under review', 'Prioritized'] as const;
 const grouped = GROUPS.map((status) => ({ status, items: items.filter((i) => i.status === status) }));
 ---
@@ -18,12 +22,18 @@ const grouped = GROUPS.map((status) => ({ status, items: items.filter((i) => i.s
       <div class="idea-cards">
         {g.items.map((it: ItemRow) => {
           const target = fmtDateShort(it.targetDate) ?? it.targetWeek;
+          const accent = labelColorHex(it.colorLabel);
+          const assignees = assigneesByItem.get(it.id) ?? [];
+          const latestComment = latestCommentByItem.get(it.id);
+          const milestones = milestonesByItem.get(it.id) ?? [];
           return (
-            <div class="idea-card">
+            <div class="idea-card" style={accent ? `border-left:4px solid ${accent}` : undefined}>
               <div class="idea-card-top">
                 <span class="not-committed">Concept — not committed</span>
               </div>
-              <h5>{it.emoji && <span aria-hidden="true">{it.emoji} </span>}{it.title}</h5>
+              <h5>
+                <a href={`/ideas/${it.id}`} class="epic-card-title-link">{it.emoji && <span aria-hidden="true">{it.emoji} </span>}{it.title}</a>
+              </h5>
               <div class="foot">
                 <span class="area-tag">{it.area && isAreaId(it.area) ? areaLabel(it.area) : '—'}</span>
                 <span style="display:flex;align-items:center;gap:6px">
@@ -31,10 +41,32 @@ const grouped = GROUPS.map((status) => ({ status, items: items.filter((i) => i.s
                   {it.ownerName && <span class="muted" style="font-size:11px">{it.ownerName}</span>}
                 </span>
               </div>
+              <MilestoneTimeline milestones={milestones} compact />
+              {assignees.length > 0 && (
+                <div class="epic-people">
+                  {assignees.map((name) => (
+                    <span class="person-tag"><span class="person-dot" style={`background:${avatarColor(name)}`} />{firstName(name)}</span>
+                  ))}
+                </div>
+              )}
+              {latestComment && (
+                <div class="latest-comment">
+                  <b>{latestComment.authorName}:</b>
+                  <span>{latestComment.body}</span>
+                </div>
+              )}
               <form method="POST" action={`/api/roadmap-items/${it.id}/attach-jira`} class="attach-jira-form">
                 <input type="hidden" name="redirectTo" value="/idea-bank" />
                 <input type="text" name="jiraKey" placeholder="⚡ Jira key, e.g. FCK-3512" required />
                 <button class="attach-btn" type="submit">Attach</button>
+              </form>
+              <form
+                method="POST"
+                action={`/api/roadmap-items/${it.id}/archive`}
+                data-confirm={`Remove "${it.title}" from the Idea bank? It won't be deleted — just hidden from this list.`}
+              >
+                <input type="hidden" name="redirectTo" value="/idea-bank" />
+                <button class="card-quick-status card-quick-remove" type="submit">🗑 Remove</button>
               </form>
             </div>
           );

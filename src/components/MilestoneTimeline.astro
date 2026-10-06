@@ -1,0 +1,76 @@
+---
+import { MILESTONES } from '../core/codesets';
+import { fmtDateShort } from '../modules/roadmap/view/render';
+import type { MilestoneRow } from '../modules/roadmap/view/queries';
+
+interface Props {
+  milestones: MilestoneRow[];
+  /** Card version: just the track and a "Next:" line. */
+  compact?: boolean;
+}
+const { milestones, compact = false } = Astro.props;
+
+const today = new Date().toISOString().slice(0, 10);
+const steps = milestones.map((m) => ({
+  label: MILESTONES.find((d) => d.id === m.key)?.label ?? m.key,
+  date: m.date,
+  short: fmtDateShort(m.date) ?? m.date,
+  done: m.date <= today,
+}));
+// Fill the line up to the last passed milestone.
+const lastDone = steps.map((s) => s.done).lastIndexOf(true);
+const fillPct = steps.length > 1 && lastDone >= 0 ? (lastDone / (steps.length - 1)) * 100 : 0;
+const next = steps.find((s) => !s.done);
+
+// Full version: dots sit at their real position in time (first → last milestone).
+const DAY = 86_400_000;
+const t = (d: string) => new Date(d).getTime();
+const t0 = steps.length ? t(steps[0].date) : 0;
+const span = steps.length ? t(steps[steps.length - 1].date) - t0 : 0;
+let prevPct = -100;
+let prevLane = 1;
+const placed = steps.map((s, i) => {
+  const pct = span > 0 ? ((t(s.date) - t0) / span) * 100 : steps.length > 1 ? (i / (steps.length - 1)) * 100 : 50;
+  // Labels close to the previous one switch side of the track so they don't overlap.
+  const lane = pct - prevPct < 17 ? 1 - prevLane : 0;
+  prevPct = pct;
+  prevLane = lane;
+  const align = pct < 8 ? 'start' : pct > 92 ? 'end' : 'mid';
+  return { ...s, pct, lane, align };
+});
+const nowPct = span > 0 ? ((Date.now() - t0) / span) * 100 : -1;
+const showNow = steps.length > 1 && nowPct > 0 && nowPct < 100;
+const donePct = Math.min(100, Math.max(0, nowPct));
+const anyAbove = placed.some((p) => p.lane === 1);
+---
+{steps.length > 0 && compact && (
+  <div class="timeline timeline-compact">
+    <div class="timeline-track">
+      <div class="timeline-line"><div class="timeline-line-fill" style={`width:${fillPct}%`} /></div>
+      {steps.map((s) => (
+        <div class:list={['timeline-step', { done: s.done, next: s === next }]} title={`${s.label} · ${s.short}`}>
+          <span class="timeline-dot" />
+        </div>
+      ))}
+    </div>
+    <div class="timeline-next">
+      {next ? <>Next: <b>{next.label}</b> · {next.short}</> : <>All milestones reached</>}
+    </div>
+  </div>
+)}
+{steps.length > 0 && !compact && (
+  <div class:list={['tl', { 'tl-above': anyAbove }]}>
+    <div class="tl-line">
+      <div class="tl-line-fill" style={`width:${steps.every((s) => s.done) ? 100 : showNow ? donePct : 0}%`} />
+    </div>
+    {showNow && (
+      <div class="tl-now" style={`left:${nowPct}%`}><span>Today</span></div>
+    )}
+    {placed.map((p) => (
+      <div class:list={['tl-step', `tl-${p.align}`, p.lane ? 'tl-up' : 'tl-down', { done: p.done, next: p === placed.find((x) => !x.done) }]} style={`left:${p.pct}%`}>
+        <span class="tl-dot" />
+        <span class="tl-text"><span class="timeline-label">{p.label}</span><span class="timeline-date">{p.short}</span></span>
+      </div>
+    ))}
+  </div>
+)}

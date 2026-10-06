@@ -1,7 +1,7 @@
 ---
 import '@fontsource-variable/inter';
 import '../styles/roadmap.css';
-import { AREAS, EPIC_LABEL_COLORS } from '../core/codesets';
+import { AREAS, EPIC_LABEL_COLORS, IDEA_OWNER_NAMES } from '../core/codesets';
 import { getAllUsers, getEpicOptions } from '../modules/roadmap/view/queries';
 import JiraPeoplePicker from '../components/JiraPeoplePicker.astro';
 
@@ -27,6 +27,7 @@ const user = Astro.locals.user;
 // Shared across all three create dialogs, fetched once per page.
 const people = await getAllUsers();
 const epicOptions = await getEpicOptions();
+const ideaOwners = people.filter((p) => (IDEA_OWNER_NAMES as readonly string[]).includes(p.name));
 ---
 <!doctype html>
 <html lang="en">
@@ -160,7 +161,7 @@ const epicOptions = await getEpicOptions();
       </form>
     </dialog>
 
-    <!-- ================= NEW IDEA (same simplified fields as New Epic — idebank §1) ================= -->
+    <!-- ================= NEW IDEA (New Epic's interface, minus Team — too early for an idea) ================= -->
     <dialog class="modal" id="ideaDialog">
       <form method="POST" action="/api/roadmap-items">
         <input type="hidden" name="kind" value="idea" />
@@ -173,36 +174,43 @@ const epicOptions = await getEpicOptions();
           <button class="modal-close" type="button" data-close-dialog aria-label="Close">✕</button>
         </div>
         <div class="modal-body">
-          <div class="field-row">
-            <div class="field">
-              <label for="idTitle">Title</label>
-              <input type="text" id="idTitle" name="title" placeholder="e.g. Add maps to articles" required />
-            </div>
-            <div class="field">
-              <label for="idEmoji">Emoji <span class="opt">(optional)</span></label>
-              <input type="text" id="idEmoji" name="emoji" placeholder="💡" maxlength="4" />
-            </div>
+          <div class="field">
+            <label for="idTitle">Title</label>
+            <input type="text" id="idTitle" name="title" placeholder="e.g. 💡 Add maps to articles" required />
           </div>
           <div class="field">
             <label for="idDesc">Description <span class="opt">(what, and why)</span></label>
             <textarea id="idDesc" name="description" placeholder="Short context for anyone landing here for the first time…"></textarea>
           </div>
-          <div class="field">
-            <label for="idAssignees">Team <span class="opt">— which team can work on it</span></label>
-            <select id="idAssignees" name="assigneeIds" multiple>
-              {people.map((p) => <option value={p.id}>{p.name}</option>)}
-            </select>
+          <div class="field-row">
+            <div class="field">
+              <label for="idOwner">Owner</label>
+              <select id="idOwner" name="ownerId" required>
+                <option value="">Choose an owner…</option>
+                {ideaOwners.map((p) => <option value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            <div class="field">
+              <label for="idTarget">Want to be released by <span class="opt">(optional)</span></label>
+              <input type="date" id="idTarget" name="targetDate" />
+            </div>
           </div>
           <div class="field">
-            <label for="idNewPeople">New person? <span class="opt">(not in the list above — comma-separated, they'll be added)</span></label>
-            <input type="text" id="idNewPeople" name="newPeople" placeholder="e.g. Kari Nordmann" />
+            <label>Importance label <span class="opt">(optional)</span></label>
+            <div class="color-picker">
+              <label class="color-swatch-none" title="No label">
+                <input type="radio" name="colorLabel" value="" checked />
+                <span aria-hidden="true">✕</span>
+              </label>
+              {EPIC_LABEL_COLORS.map((c) => (
+                <label class="color-swatch" style={`--swatch-color:${c.hex}`} title={c.id}>
+                  <input type="radio" name="colorLabel" value={c.id} />
+                </label>
+              ))}
+            </div>
           </div>
           <div class="field">
-            <label for="idTarget">Estimated delivery <span class="opt">(optional)</span></label>
-            <input type="date" id="idTarget" name="targetDate" />
-          </div>
-          <div class="field">
-            <div class="help">That's it — owner, area, priority, size and a Jira key can be filled in later. New ideas start as type <b>Task</b>, status <b>Idea</b>, in the idea bank.</div>
+            <div class="help">That's it — area, team, status, comments and attachments can be filled in later. New ideas start as status <b>Idea</b>, in the idea bank.</div>
           </div>
         </div>
         <div class="modal-foot">

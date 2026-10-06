@@ -46,14 +46,16 @@ export const POST: APIRoute = async ({ request, redirect, locals }) => {
     }
 
     if (kind === 'idea') {
+      const ownerId = str(form.get('ownerId'));
+      if (!ownerId) return new Response('An idea needs an owner.', { status: 400 });
       await createRoadmapItem({
         type: 'Task',
         title: form.get('title') as string,
-        emoji: str(form.get('emoji')),
         description: str(form.get('description')),
         targetDate: str(form.get('targetDate')),
         status: 'Idea',
-        assigneeIds: [...ids(form, 'assigneeIds'), ...newPeopleIds],
+        ownerId,
+        colorLabel: str(form.get('colorLabel')),
         actorEmail,
       });
       return redirect('/idea-bank', 303);

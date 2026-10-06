@@ -1,6 +1,12 @@
-/** Adds a comment to an Epic — feltkatalog §2. */
+/** Adds a comment to an Epic or Idea — feltkatalog §2. */
 import type { APIRoute } from 'astro';
 import { addComment } from '../../../../modules/roadmap/write';
+
+/** Same-site path only — default to the Epic page, which these forms were built for. */
+function backTo(form: FormData, id: string): string {
+  const to = form.get('redirectTo');
+  return typeof to === 'string' && to.startsWith('/') && !to.startsWith('//') ? to : `/epics/${id}`;
+}
 
 export const POST: APIRoute = async ({ params, request, redirect }) => {
   const id = params.id;
@@ -13,7 +19,7 @@ export const POST: APIRoute = async ({ params, request, redirect }) => {
 
   try {
     await addComment(id, authorId, body);
-    return redirect(`/epics/${id}`, 303);
+    return redirect(backTo(form, id), 303);
   } catch (err) {
     console.error('[comments] failed', err);
     return new Response('Could not save the comment — please try again.', { status: 500 });

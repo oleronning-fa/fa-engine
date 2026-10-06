@@ -12,9 +12,11 @@ import {
   roadmapComment,
   roadmapItem,
   roadmapItemAssignee,
+  roadmapMilestone,
   roadmapStatusLog,
 } from '../../core/schema';
 import { and, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
+import { MILESTONES } from '../../core/codesets';
 import { mapSubstatus, type JiraSnapshot } from '../../core/jira';
 
 export interface CreateItemInput {
@@ -673,5 +675,14 @@ export async function addComment(itemId: string, authorId: string, body: string)
       entityId: itemId,
       payload: {},
     });
+  });
+}
+
+/** Replace an idea's timeline wholesale — `dates` maps milestone id → YYYY-MM-DD; blank/missing means no milestone. */
+export async function setMilestones(itemId: string, dates: Record<string, string | null>): Promise<void> {
+  const rows = MILESTONES.flatMap((m) => (dates[m.id] ? [{ roadmapItemId: itemId, key: m.id as string, date: dates[m.id] as string }] : []));
+  await db.transaction(async (tx) => {
+    await tx.delete(roadmapMilestone).where(eq(roadmapMilestone.roadmapItemId, itemId));
+    if (rows.length > 0) await tx.insert(roadmapMilestone).values(rows);
   });
 }

@@ -107,3 +107,24 @@ export const isEpicLabelColor = (v: string): v is EpicLabelColor =>
 export function statusSetFor(type: RoadmapItemType): readonly RoadmapStatus[] {
   return type === 'Epic' ? EPIC_STATUSES : TASK_STATUSES;
 }
+
+/**
+ * Who can own an idea — the Hegnar/FA product team, not the Zagreb executors
+ * (OC, 2 Oct). Matched by name against `app_user`; edit here to change.
+ */
+export const IDEA_OWNER_NAMES = ['Ole Christian', 'Magnus', 'Marina', 'Markus'] as const;
+
+/**
+ * The idea timeline's milestones, in order (OC, 2 Oct). All optional — an
+ * idea shows only the ones that have a date.
+ */
+export const MILESTONES = [
+  { id: 'scoped', label: 'Scoped by Hegnar' },
+  { id: 'design', label: 'Design done' },
+  { id: 'dev_start', label: 'Development start' },
+  { id: 'test', label: 'Test period' },
+  { id: 'finalizing', label: 'Finalizing' },
+  { id: 'launch', label: 'Launch' },
+] as const;
+export type MilestoneId = (typeof MILESTONES)[number]['id'];
+export const isMilestoneId = (v: string): v is MilestoneId => MILESTONES.some((m) => m.id === v);

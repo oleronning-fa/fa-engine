@@ -480,3 +480,44 @@ dialog.modal::backdrop{background:rgba(1,23,45,.42)}
 /* Destructive-action red — a UI-danger convention, not a status colour, so
    this doesn't collide with plan §7's "never market red/green" rule. */
 .card-quick-remove:hover{border-color:#CA2B3D;color:#CA2B3D;background:#F6DDE0}
+
+/* Idea timeline (components/MilestoneTimeline.astro) */
+.timeline{display:flex;flex-direction:column;gap:6px;margin:4px 0}
+.timeline-track{position:relative;display:flex;justify-content:space-between;align-items:flex-start}
+.timeline-line{position:absolute;left:8px;right:8px;top:7px;height:3px;border-radius:100px;background:var(--surface-sunken)}
+.timeline-line-fill{height:100%;border-radius:100px;background:var(--interactive)}
+.timeline-step{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;flex:1 1 0;min-width:0;text-align:center}
+.timeline-step:first-of-type{align-items:flex-start;text-align:left}
+.timeline-dot{width:17px;height:17px;border-radius:50%;background:var(--surface);border:3px solid var(--border);box-sizing:border-box;position:relative;z-index:1}
+.timeline-step.done .timeline-dot{background:var(--interactive);border-color:var(--interactive)}
+.timeline-step.next .timeline-dot{border-color:var(--interactive)}
+.timeline-label{font-size:11.5px;font-weight:600;line-height:1.25}
+.timeline-date{font-size:11px;color:var(--text-secondary)}
+.timeline-compact .timeline-dot{width:11px;height:11px;border-width:2px}
+.timeline-compact .timeline-line{left:5px;right:5px;top:4px;height:2px}
+.timeline-compact .timeline-step{flex:0 0 auto}
+.timeline-next{font-size:11px;color:var(--text-secondary)}
+.timeline-section{max-width:640px;margin:0 0 18px;padding:14px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+.milestone-fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+
+/* Idea timeline, full version — dots at their real position in time */
+.tl{position:relative;height:84px;margin:22px 10px 0}
+.tl-above{height:128px}
+.tl-line{position:absolute;left:0;right:0;top:26px;height:3px;border-radius:100px;background:var(--surface-sunken)}
+.tl-line-fill{height:100%;border-radius:100px;background:var(--interactive)}
+.tl-now{position:absolute;top:0;bottom:0;width:0;border-left:1.5px dashed #E5484D;z-index:0}
+.tl-now span{position:absolute;top:-3px;left:50%;transform:translate(-50%,-100%);font-size:10.5px;font-weight:600;color:#E5484D;white-space:nowrap}
+.tl-step{position:absolute;top:0;width:0;height:100%}
+.tl-dot{position:absolute;top:21px;left:-7px;width:14px;height:14px;border-radius:50%;box-sizing:border-box;background:var(--surface);border:3px solid var(--border);z-index:1}
+.tl-step.done .tl-dot{background:var(--interactive);border-color:var(--interactive)}
+.tl-step.next .tl-dot{border-color:var(--interactive)}
+.tl-text{position:absolute;display:flex;flex-direction:column;gap:1px;white-space:nowrap;text-align:center;left:0;transform:translateX(-50%)}
+.tl-start .tl-text{transform:none;text-align:left;left:-7px}
+.tl-end .tl-text{transform:none;text-align:right;left:auto;right:-7px}
+.tl-down .tl-text{top:42px}
+.tl-up .tl-text{bottom:calc(100% - 15px)}
+.tl-above{height:130px}
+.tl-above .tl-line{top:62px}
+.tl-above .tl-dot{top:57px}
+.tl-above .tl-down .tl-text{top:78px}
+.tl-above .tl-up .tl-text{bottom:calc(100% - 51px)}
